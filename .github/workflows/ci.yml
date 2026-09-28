@@ -1,0 +1,73 @@
+# Builds VATs and runs the core tests on Linux (GCC and Clang, warnings as errors) and Windows (MSVC),
+# with the same CMake options as the release packages: SDL3 and Dear ImGui are fetched at their pinned
+# versions (app/CMakeLists.txt, ui/CMakeLists.txt), and the install step is checked too.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+          - compiler: clang
+            cc: clang
+            cxx: clang++
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
+            libxtst-dev libxkbcommon-dev libwayland-dev wayland-protocols libegl1-mesa-dev \
+            libgl1-mesa-dev libdbus-1-dev libudev-dev libasound2-dev libpulse-dev
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DVATS_BUILD_TESTS=ON
+          "-DCMAKE_CXX_FLAGS=-Werror -Wno-error=free-nonheap-object"
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Install
+        run: |
+          cmake --install build --prefix "$RUNNER_TEMP/vats" --strip
+          test -x "$RUNNER_TEMP/vats/bin/vats"
+          test -f "$RUNNER_TEMP/vats/share/viewport-avatar-toolset/data/character/avatar_skeleton.xml"
+
+  windows:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DVATS_BUILD_TESTS=ON
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Install
+        shell: pwsh
+        run: |
+          cmake --install build --prefix "$env:RUNNER_TEMP\vats"
+          if (-not (Test-Path "$env:RUNNER_TEMP\vats\bin\vats.exe")) { exit 1 }
+          if (-not (Test-Path "$env:RUNNER_TEMP\vats\bin\SDL3.dll")) { exit 1 }

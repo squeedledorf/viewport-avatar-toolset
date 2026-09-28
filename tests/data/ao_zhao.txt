@@ -1,0 +1,6 @@
+[ Standing ]AO_stand1|AO_stand2
+[ Walking ]AO_walk
+[ Running ]AO_run
+[ Sitting ]AO_sit
+[ Sitting On Ground ]AO_groundsit
+[ Jumping ]AO_jump1

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Viewport Avatar Toolset
+GenericName=Animation Editor
+Comment=Create Second Life animations
+Exec=vats %f
+Icon=viewport-avatar-toolset
+Terminal=false
+Categories=Graphics;3DGraphics;
+MimeType=application/x-vats-project;application/x-secondlife-animation;

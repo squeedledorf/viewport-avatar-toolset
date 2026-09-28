@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Viewport Avatar Toolset icon: a motion curve through keyframes, in the Dusk theme's colours. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#343844"/>
+      <stop offset="1" stop-color="#1c1e24"/>
+    </linearGradient>
+    <linearGradient id="key" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4c27a"/>
+      <stop offset="1" stop-color="#e0983c"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bg)"/>
+  <rect x="8.5" y="8.5" width="239" height="239" rx="51.5" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  <!-- faint timeline grid -->
+  <g stroke="#ffffff" stroke-opacity="0.06" stroke-width="3">
+    <line x1="72" y1="44" x2="72" y2="212"/>
+    <line x1="128" y1="44" x2="128" y2="212"/>
+    <line x1="184" y1="44" x2="184" y2="212"/>
+  </g>
+  <!-- the motion curve -->
+  <path d="M52 176 C 88 176, 92 84, 128 84 S 168 172, 204 172" fill="none" stroke="#dfe2e8" stroke-width="11"
+        stroke-linecap="round"/>
+  <!-- keyframes -->
+  <g stroke="#1c1e24" stroke-width="6" stroke-linejoin="round">
+    <path d="M128 52 L160 84 L128 116 L96 84 Z" fill="url(#key)"/>
+    <path d="M52 158 L70 176 L52 194 L34 176 Z" fill="#9aa3b3"/>
+    <path d="M204 154 L222 172 L204 190 L186 172 Z" fill="#9aa3b3"/>
+  </g>
+</svg>

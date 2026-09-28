@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-vats-project">
+    <comment>VATs animation project</comment>
+    <sub-class-of type="application/json"/>
+    <glob pattern="*.vat"/>
+    <icon name="viewport-avatar-toolset"/>
+  </mime-type>
+  <mime-type type="application/x-secondlife-animation">
+    <comment>Second Life animation</comment>
+    <glob pattern="*.anim"/>
+    <icon name="viewport-avatar-toolset"/>
+  </mime-type>
+</mime-info>

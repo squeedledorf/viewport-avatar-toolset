@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "soundFile": "hello.wav",
+    "duration": 1.50
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.20, "value": "X" },
+    { "start": 0.20, "end": 0.50, "value": "D" },
+    { "start": 0.50, "end": 0.70, "value": "A" },
+    { "start": 0.70, "end": 1.00, "value": "F" },
+    { "start": 1.00, "end": 1.50, "value": "X" }
+  ]
+}

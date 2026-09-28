@@ -1,0 +1,28 @@
+# Text files: LF in the repository and in the working tree on every system, so byte-exact test data and the
+# shell scripts stay intact on Windows checkouts.
+* text=auto eol=lf
+
+# Binary data: never converted or diffed as text.
+*.png binary
+*.jpg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.bmp binary
+*.ttf binary
+*.otf binary
+*.anim binary
+*.llm binary
+*.fbx binary
+*.glb binary
+*.wav binary
+*.mp3 binary
+*.flac binary
+*.ogg binary
+*.mp4 binary
+*.webm binary
+*.zip binary
+*.xz binary
+
+# Vendored libraries: not counted as project code on GitHub.
+third_party/** linguist-vendored

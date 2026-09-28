@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Viewport Avatar Toolset - macOS bundle description. LGPL-2.1, see LICENSE.
+     IO-51: VATs projects are declared as an exported UTI and opened by the app; SL .anim is an
+     imported UTI the app can also open. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Viewport Avatar Toolset</string>
+	<key>CFBundleDisplayName</key>
+	<string>Viewport Avatar Toolset</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.viewport-avatar-toolset</string>
+	<key>CFBundleExecutable</key>
+	<string>vats</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.viewport-avatar-toolset.project</string>
+			<key>UTTypeDescription</key>
+			<string>Viewport Avatar Toolset project</string>
+			<key>UTTypeConformsTo</key>
+			<array><string>public.json</string></array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array><string>vat</string></array>
+				<key>public.mime-type</key>
+				<string>application/x-vats-project</string>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.viewport-avatar-toolset.sl-anim</string>
+			<key>UTTypeDescription</key>
+			<string>Second Life animation</string>
+			<key>UTTypeConformsTo</key>
+			<array><string>public.data</string></array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array><string>anim</string></array>
+				<key>public.mime-type</key>
+				<string>application/x-secondlife-animation</string>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Viewport Avatar Toolset project</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array><string>org.viewport-avatar-toolset.project</string></array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Animation files VATs can open</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.viewport-avatar-toolset.sl-anim</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
