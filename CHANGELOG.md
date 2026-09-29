@@ -2,6 +2,17 @@
 
 All notable changes to Viewport Avatar Toolset are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-29
+
+### Added
+
+- SoapStorm's VATs Editor: **View > Body** can show a rigged mesh body (a devkit, or any rigged .dae or .fbx, a creature too) in your avatar's place, on your screen only. Your avatar, its attachments and its name tag are hidden on your screen; nothing is sent. The body poses on its own joint positions, and **Bake shape > Your avatar** exports against it, position keys included.
+- **View > Body > Keep in Real-Avatar Modes** (on by default): As It Plays In-World, Test as My Walk / Run and Place on Furniture Point keep the swapped body, moving as your avatar really does (the region's and your AO's animations, the walk, the sit) on its own proportions. Turn it off to see your real avatar in those modes.
+
+### Fixed
+
+- Rigged meshes with their own proportions (joints far from SL's, as on a creature) imported smaller than Second Life shows them: when no unit fitted, the rig was scaled to the median ratio of its joint distances. They now keep the unit the file declares, as Second Life does. DAE and FBX.
+
 ## [0.1.0] - 2026-09-28
 
 Initial public release, for Linux (x86_64) and 64-bit Windows.
@@ -58,4 +69,5 @@ Initial public release, for Linux (x86_64) and 64-bit Windows.
 - Control presets: Industry (Maya-style), Blender, QAvimator and Second Life.
 - Built-in help with contents and search, a controls window, two themes, interface scaling, autosave with crash recovery, file associations, and command-line options for files, presets, views, lights, reference and listing media, tool windows, screenshots and benchmarks.
 
+[0.1.1]: ../../releases/tag/v0.1.1
 [0.1.0]: ../../releases/tag/v0.1.0

@@ -101,3 +101,50 @@ TEST(body_swap_export_keys_positions_at_the_swapped_bodys_joints) {
     const AnimImportResult off = import_anim(s, export_anim(s, c, ik_only).file);
     CHECK(curve_offset(off.clip, "mKneeLeft", 0).length() < 2e-4);
 }
+
+TEST(body_swap_skins_on_the_live_pose_with_its_own_joints) {
+    // Spec 09 build 34: in the viewer's real-avatar modes the swapped body follows your avatar as the world moves it.
+    // The host reads the avatar's joints back (Skeleton::pose_from_live); the body is skinned on that pose over its own
+    // shape: every rotation and the hip's travel are the avatar's, every joint position the body's own bind.
+    const Skeleton& s = skel();
+    DaeModel m = long_legs(s);
+    Shape body;
+    CHECK(shape_from_binds(s, {&m}, nullptr, body));
+    const int pelvis = 0, knee = s.find("mKneeLeft"), ankle = s.find("mAnkleLeft");
+    // One vertex, bound at the left ankle's bind, all its weight on the ankle.
+    m.positions = {float(m.binds[ankle].pos.x), float(m.binds[ankle].pos.y), float(m.binds[ankle].pos.z)};
+    m.normals = {0, 0, 1};
+    m.joints = {ankle, dae_root(s), dae_root(s), dae_root(s)};
+    m.weights = {1, 0, 0, 0};
+    m.binds.resize(size_t(dae_index_count(s)));
+    std::vector<float> pos, nrm;
+
+    // The avatar walked 2 m forward and 0.5 m left, sank 0.3 m (a sit), and turned a quarter to its left.
+    const Vec3 rest_pelvis = s[pelvis].pos, travel{2.0, 0.5, -0.3}, up{0, 0, 0.10};  // up: the longer legs' lift
+    const Quat turn = Quat::axis_angle({0, 0, 1}, kPi / 2);
+    std::vector<Quat> local(size_t(s.size()));
+    for (int i = 0; i < s.size(); ++i) local[size_t(i)] = s[i].rest;
+    local[pelvis] = turn;
+    Pose live = s.pose_from_live(local, rest_pelvis + travel);
+    std::vector<Xform> g = s.global_pose(live, &body);
+    CHECK((g[pelvis].pos - (rest_pelvis + travel + up)).length() < 1e-9);  // the hip's travel, on the body's own height
+    CHECK(std::fabs(std::fabs(g[pelvis].rot.dot(turn)) - 1) < 1e-12);
+    skin_prop(m, s, g, &body, pos, nrm);
+    const Vec3 vertex{pos[0], pos[1], pos[2]};
+    const Vec3 expect = rest_pelvis + travel + up + turn.rotate(m.binds[ankle].pos - rest_pelvis);
+    CHECK((vertex - expect).length() < 1e-5);  // where the live pose puts it, on the body's longer leg
+
+    // The knee bends 60 degrees: the ankle swings about the knee, at the distance the body's binds give its shin.
+    local[size_t(knee)] = s[knee].rest * Quat::axis_angle({0, 1, 0}, kPi / 3);
+    live = s.pose_from_live(local, rest_pelvis + travel);
+    g = s.global_pose(live, &body);
+    skin_prop(m, s, g, &body, pos, nrm);
+    const Vec3 bent{pos[0], pos[1], pos[2]};
+    const double shin = (m.binds[ankle].pos - m.binds[knee].pos).length();
+    CHECK(std::fabs((bent - g[knee].pos).length() - shin) < 1e-5);
+    CHECK((bent - vertex).length() > 0.2);                    // it did swing
+    CHECK((g[ankle].pos - bent).length() < 1e-5);              // and stays on the body's ankle
+    // Every joint turns as the live avatar's does, whatever the body's proportions.
+    const std::vector<Xform> avatar = s.global_pose(live);
+    for (int i : {pelvis, knee, ankle}) CHECK(std::fabs(std::fabs(g[size_t(i)].rot.dot(avatar[size_t(i)].rot)) - 1) < 1e-12);
+}
