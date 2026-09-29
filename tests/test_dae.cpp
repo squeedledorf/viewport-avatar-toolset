@@ -585,7 +585,27 @@ TEST(dae_rig_scale_ignores_posed_arms) {
     CHECK_NEAR(rig_scale_of(r, measured), 1.0, 0);
     CHECK(measured > 1.1);
     CHECK_NEAR(rig_scale_of({0.0254, 0.0256, 0.0251}, measured), 0.0254, 0);
-    CHECK_NEAR(rig_scale_of({1.2, 1.21, 1.19}, measured), 1.2, 0);  // no unit: the median
+    // No unit fits: the declared unit when the median is within a factor of 2 of it, else the median.
+    CHECK_NEAR(rig_scale_of({1.2, 1.21, 1.19}, measured), 1.0, 0);
+    CHECK_NEAR(rig_scale_of({1.2, 1.21, 1.19}, measured, 0.01), 1.2, 0);
+    CHECK_NEAR(rig_scale_of({0.66, 0.70, 0.74}, measured, 1), 1.0, 0);
+    CHECK_NEAR(rig_scale_of({0.4, 0.41, 0.39}, measured, 1), 0.4, 0);
+}
+
+// A creature rigged with its own joint positions, far from SL's (legs raised, torso stretched), and exported in
+// metres: no unit fits the ratios, and the median (about 0.7) used to shrink the whole body to 70 % of what SL
+// uploads. The declared metre wins, and the binds keep the file's joint positions.
+TEST(dae_rig_scale_keeps_custom_proportions) {
+    Rig rig;
+    rig.asset = "<unit meter=\"1\"/>";
+    rig.ibms = ibm_text(rest("mPelvis") * 1.35) + ibm_text(rest("mChest") * 1.5);
+    DaeModel m;
+    DaeReport r;
+    CHECK(load(rig.text(), m, r));
+    CHECK(r.measured_scale > 0.6 && r.measured_scale < 0.8);
+    CHECK_NEAR(r.scale, 1, 0);
+    CHECK(near(m.binds[skel().find("mPelvis")].pos, rest("mPelvis") * 1.35));
+    CHECK(near(m.binds[skel().find("mChest")].pos, rest("mChest") * 1.5));
 }
 
 // Guards: a vertex with no usable weight stays where it was bound (not at the origin), and a broken bind
@@ -605,7 +625,7 @@ TEST(dae_skin_guards_never_fling) {
 
 TEST(dae_rig_scale_snaps) {
     // Centimetres, with a 1 % error in the binds: measured about 0.0099, snapped to 0.01.
-    // unit@meter is ignored for rigged files.
+    // unit@meter is far from these binds (a factor of 100), so the declared-unit fallback does not apply.
     Rig rig;
     rig.asset = "<unit meter=\"0.0001\"/>";
     rig.ibms = ibm_text(rest("mPelvis") * 101) + ibm_text(rest("mChest") * 101);
