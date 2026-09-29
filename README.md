@@ -12,7 +12,9 @@ Pose and animate Second Life's Bento avatar on a timeline, then export a `.anim`
 
 Viewport Avatar Toolset (VATs) is a free, open-source animation editor for Second Life avatars. You pose the full Bento skeleton (133 joints, 47 attachment points and 26 collision volumes) on a timeline, preview the result on the Linden avatar or on a mesh body from a devkit, and export a `.anim` file written the way the viewer writes its own, or a BVH file for other tools. Motion can also come in from BVH, glTF and FBX files made for other rigs, or live from motion-capture apps over your local network. VATs runs on Linux and Windows and is licensed under the LGPL-2.1.
 
-An in-viewer edition that shares the same core and project files is in development; this release is the standalone desktop app.
+The same editor also runs inside the [SoapStorm](https://github.com/soapyf/soapstorm) viewer, on your own avatar in-world: see [In Second Life](#in-second-life) below and the [Releases page](https://github.com/squeedledorf/viewport-avatar-toolset/releases).
+
+VATs is original software. It was inspired by the work being done on [Hexton Second Life Animator](https://parxofficial.gumroad.com/l/HexAnim) by Parx Oran, another talented Second Life creator.
 
 ## Highlights
 
@@ -35,7 +37,7 @@ An in-viewer edition that shares the same core and project files is in developme
 
 ## In Second Life
 
-The same editor runs inside an SL viewer, on your own avatar, in-world. These are recordings from a live session (click a clip for the full-quality video).
+The same editor runs inside the [SoapStorm](https://github.com/soapyf/soapstorm) viewer, on your own avatar, in-world. These are recordings from a live session (click a clip for the full-quality video).
 
 | | |
 |---|---|
