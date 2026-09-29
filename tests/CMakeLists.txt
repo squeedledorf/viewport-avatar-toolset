@@ -72,8 +72,9 @@ target_link_libraries(vats_tests PRIVATE vats::core)
 if(VATS_LEGACY_IMPORT)
     target_sources(vats_tests PRIVATE test_legacy_import.cpp)
 endif()
-if(TARGET imgui)  # the shortcut overrides use ImGui's key names, no context (ui/keymap.h)
-    target_sources(vats_tests PRIVATE test_keymap.cpp ${PROJECT_SOURCE_DIR}/ui/keymap.cpp ${PROJECT_SOURCE_DIR}/ui/settings.cpp)
+if(TARGET imgui)  # the shortcut overrides use ImGui's key names (ui/keymap.h); the dock layout a headless context
+    target_sources(vats_tests PRIVATE test_keymap.cpp ${PROJECT_SOURCE_DIR}/ui/keymap.cpp ${PROJECT_SOURCE_DIR}/ui/settings.cpp
+                                      test_dock_layout.cpp ${PROJECT_SOURCE_DIR}/ui/dock_layout.cpp)
     target_link_libraries(vats_tests PRIVATE imgui)
 endif()
 if(VATS_FBX)

@@ -87,3 +87,10 @@ TEST(keymap_overrides_saved_in_settings) {
     CHECK(t.key_overrides == s.key_overrides);
     std::remove(file.c_str());
 }
+
+TEST(keymap_offered_presets) {
+    const auto app = offered_presets(false), viewer = offered_presets(true);
+    CHECK(app.size() == 4 && app.front() == Preset::Industry && app.back() == Preset::SecondLife);
+    CHECK(viewer.size() == 1 && viewer[0] == Preset::SecondLife);  // one preset: Preferences shows no picker
+    CHECK(std::string(preset_label(Preset::SecondLife)) == "Second Life");
+}

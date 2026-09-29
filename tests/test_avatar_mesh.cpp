@@ -108,6 +108,35 @@ TEST(avatar_mesh_zero_pose_female) {
     CHECK(worst < 1e-5);
 }
 
+// A stand-in body drawn with a worn mesh head's proportions: the head's joint positions move the eye joints, but
+// the Linden eyeballs stay in the Linden head, at the drawn body's own eye positions (and still turn with the eyes).
+TEST(avatar_mesh_eyes_ignore_worn_eye_positions) {
+    mesh().build(Body::SLDefault);
+    const Shape own = *mesh().shape(Body::SLDefault);
+    Shape worn = own;
+    const int left = skel().find("mEyeLeft"), right = skel().find("mEyeRight");
+    worn.offset[size_t(left)] += Vec3{0.08, 0, 0.02};  // a lynx head: its eyes far in front of the face
+    worn.offset[size_t(right)] += Vec3{0.08, 0, 0.02};
+    Pose pose(skel().size());
+    pose.rot[size_t(skel().find("mHead"))] = Quat::axis_angle({0, 1, 0}, 0.4);
+    pose.rot[size_t(left)] = Quat::axis_angle({0, 0, 1}, 0.3);
+    std::vector<float> a, b, nrm;
+    skin_pose(pose, &own, a, nrm);
+    skin_pose(pose, &worn, b, nrm);
+    double worst = 0;
+    for (size_t i = 0; i < a.size(); ++i) worst = std::max(worst, double(std::fabs(a[i] - b[i])));
+    CHECK(worst < 1e-5);
+    // With its own shape an eye sits where its joint is, turned by its key.
+    const auto g = skel().global_pose(pose, &own);
+    const MeshPart& eye = mesh().parts()[4];
+    const LlmMesh& f = mesh().file(AvatarMesh::Eye);
+    double off = 0;
+    for (std::uint32_t v = 0; v < eye.vertex_count; ++v)
+        off = std::max(off, (at(a, eye.first_vertex + v) - g[size_t(left)].apply(at(f.coords, v))).length());
+    CHECK(off < 1e-5);
+    mesh().build(Body::Female);
+}
+
 TEST(avatar_mesh_male) {
     std::vector<float> female, male, nrm;
     mesh().build(Body::Female);

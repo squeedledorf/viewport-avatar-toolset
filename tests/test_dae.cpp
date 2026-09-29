@@ -488,6 +488,106 @@ TEST(dae_blender_axes_mesh_and_volume_binds) {
         CHECK(near(at(p, v), piv + q.rotate(at(m.positions, v) - piv), 1e-5));
 }
 
+// A fitted-mesh body in SL's own frames, modelled in an A-pose (the Legacy devkits): the left arm is bound turned
+// 45 degrees down, and the mesh is weighted to collision volumes as well as joints. As in SL, the inverse binds
+// carry the arm onto the rest skeleton: every vertex lands at its volume's (or joint's) own offset on the T-pose
+// arm, and one weighted to a volume rides that volume when it moves or scales. A hand volume stays on a wrist the
+// body did not bind, and a centre volume bound a few centimetres behind SL's (the male Legacy's CHEST) is not
+// turned inside out.
+TEST(dae_fitted_mesh_a_pose_binds_skin_onto_rest) {
+    const Skeleton& s = skel();
+    const auto r0 = s.global_pose(Pose(s.size()));
+    const int count = dae_index_count(s);
+    auto vol = [&](const char* n) { return dae_volume(s, s.find_volume(n)); };
+    auto vol_node = [&](const char* n) { return s.volumes()[s.find_volume(n)].node; };
+    DaeModel m;
+    m.rigged = true;
+    m.binds = r0;
+    m.binds.push_back({});  // mRoot
+    for (auto& v : s.volumes()) m.binds.push_back(r0[v.node]);
+    std::vector<bool> bound(count, false);
+    for (const char* n : {"mPelvis", "mTorso", "mChest", "mCollarLeft", "mShoulderLeft", "mElbowLeft"}) bound[s.find(n)] = true;
+    // The A-pose: the shoulder turned down, the elbow carried with it; each arm volume hangs off its bound joint.
+    const int shoulder = s.find("mShoulderLeft"), elbow = s.find("mElbowLeft");
+    const Quat a = Quat::axis_angle({1, 0, 0}, -kPi / 4);
+    m.binds[shoulder] = {a, r0[shoulder].pos};
+    m.binds[elbow] = m.binds[shoulder] * Xform{s[elbow].rest, s[elbow].pos};
+    const int wrist = s.find("mWristLeft");  // not bound: its bind is the rest, and the A-pose hand hangs off the elbow
+    const Xform wrist_a = m.binds[elbow] * Xform{s[wrist].rest, s[wrist].pos};
+    for (const char* n : {"L_UPPER_ARM", "L_LOWER_ARM", "L_HAND", "BELLY", "CHEST"}) {
+        const CollisionVolume& cv = s.volumes()[s.find_volume(n)];
+        m.binds[vol(n)] = (cv.joint == wrist ? wrist_a : m.binds[cv.joint]) * Xform{cv.rot, cv.pos};
+        bound[vol(n)] = true;
+    }
+    const Vec3 chest_rest = r0[vol_node("CHEST")].pos;
+    m.binds[vol("CHEST")].pos.x = -chest_rest.x - 0.004;  // 3 cm behind SL's, close to SL's mirrored across the centre line
+    CHECK(std::fabs(m.binds[vol("CHEST")].pos.x - chest_rest.x) > 0.01);
+    // One vertex per influence, a few centimetres off it in its own frame; the last is half joint, half volume.
+    struct V {
+        int j0, j1;
+        float w0;
+        Vec3 off;
+    };
+    const std::vector<V> verts = {{vol("L_UPPER_ARM"), -1, 1, {0.02, 0.01, 0.04}},
+                                  {vol("L_LOWER_ARM"), -1, 1, {0, 0.03, -0.035}},
+                                  {vol("BELLY"), -1, 1, {0.06, 0, 0.02}},
+                                  {s.find("mChest"), -1, 1, {0.05, 0.03, 0.1}},
+                                  {elbow, vol("L_LOWER_ARM"), 0.5f, {0, 0.05, 0.03}},
+                                  {vol("L_HAND"), -1, 1, {0.01, 0.04, -0.01}}};
+    for (const V& v : verts) {
+        const Vec3 p = m.binds[v.j0].apply(v.off);
+        for (int i = 0; i < 3; ++i) m.positions.push_back(float(p[i])), m.normals.push_back(i == 2 ? 1.f : 0.f);
+        m.joints.insert(m.joints.end(), {v.j0, v.j1 < 0 ? dae_root(s) : v.j1, dae_root(s), dae_root(s)});
+        m.weights.insert(m.weights.end(), {v.w0, 1 - v.w0, 0, 0});
+    }
+    DaeReport rep;
+    settle_rig(m, s, bound, rep);
+    CHECK(rep.warnings.empty());
+    auto same = [](const Quat& x, const Quat& y) { return std::fabs((x.conj() * y).w) > 1 - 1e-12; };
+    CHECK(same(m.binds[shoulder].rot, a));  // the pose is kept, not taken for a bone-axis convention
+    CHECK(same(m.binds[vol("CHEST")].rot, r0[vol_node("CHEST")].rot));
+
+    Shape shape;
+    std::vector<const DaeModel*> parts{&m};
+    CHECK(shape_from_binds(s, parts, nullptr, shape));
+    const auto g0 = s.global_pose(Pose(s.size()), &shape);
+    CHECK(near(g0[elbow].pos, r0[elbow].pos, 1e-9));  // the elbow keeps SL's rest place: out along the T-pose arm
+    CHECK(near(g0[vol_node("L_LOWER_ARM")].pos, r0[vol_node("L_LOWER_ARM")].pos, 1e-9));
+    CHECK(near(g0[vol_node("L_HAND")].pos, r0[vol_node("L_HAND")].pos, 1e-9));
+    std::vector<float> p, n;
+    skin_prop(m, s, g0, &shape, p, n);
+    const int on[] = {vol_node("L_UPPER_ARM"), vol_node("L_LOWER_ARM"), vol_node("BELLY"), s.find("mChest"), elbow,
+                      vol_node("L_HAND")};
+    for (size_t v = 0; v < verts.size(); ++v) CHECK(near(at(p, v), g0[on[v]].apply(verts[v].off), 1e-6));
+
+    // The belly volume moves 4 cm up: its vertex moves with it, the chest's stays.
+    Pose jiggle(s.size());
+    jiggle.offset[vol_node("BELLY")] = {0, 0, 0.04};
+    std::vector<float> q;
+    skin_prop(m, s, s.global_pose(jiggle, &shape), &shape, q, n);
+    CHECK(near(at(q, 2), at(p, 2) + Vec3{0, 0, 0.04}, 1e-6));
+    CHECK(near(at(q, 3), at(p, 3), 1e-9));
+    // Scaled (the shape scales a volume with its joint): the vertex keeps its place relative to the volume, scaled.
+    const int torso = s.volumes()[s.find_volume("BELLY")].joint;
+    shape.scale[torso] = {1.5, 1.5, 1.5};
+    const auto gs = s.global_pose(Pose(s.size()), &shape);
+    skin_prop(m, s, gs, &shape, q, n);
+    const Xform b = gs[vol_node("BELLY")];
+    CHECK(near(at(q, 2), b.pos + b.rot.rotate(verts[2].off * 1.5), 1e-6));
+}
+
+// The rig scale is the unit most joints agree on: an A-posed body's arms and hands (a good third of its joints, all
+// nearer the origin than SL's T-pose) no longer pull the median off 1 and grow the body by 13 %.
+TEST(dae_rig_scale_ignores_posed_arms) {
+    std::vector<double> r(35, 1.0);
+    for (int i = 0; i < 40; ++i) r.push_back(1.33 + i * 0.0015);
+    double measured = 0;
+    CHECK_NEAR(rig_scale_of(r, measured), 1.0, 0);
+    CHECK(measured > 1.1);
+    CHECK_NEAR(rig_scale_of({0.0254, 0.0256, 0.0251}, measured), 0.0254, 0);
+    CHECK_NEAR(rig_scale_of({1.2, 1.21, 1.19}, measured), 1.2, 0);  // no unit: the median
+}
+
 // Guards: a vertex with no usable weight stays where it was bound (not at the origin), and a broken bind
 // never yields a non-finite position.
 TEST(dae_skin_guards_never_fling) {
