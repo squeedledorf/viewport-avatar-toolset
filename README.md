@@ -14,7 +14,7 @@ Viewport Avatar Toolset (VATs) is a free, open-source animation editor for Secon
 
 The same editor also runs inside the [SoapStorm](https://github.com/soapyf/soapstorm) viewer, on your own avatar in-world: see [In Second Life](#in-second-life) below and the [Releases page](https://github.com/squeedledorf/viewport-avatar-toolset/releases).
 
-VATs is original software. It was inspired by the work being done on [Hexton Second Life Animator](https://parxofficial.gumroad.com/l/HexAnim) by Parx Oran, another talented Second Life creator.
+VATs is original software. It was inspired by the work being done on [Hexton Second Life Animator](https://parxofficial.gumroad.com/l/HexAnim) by Parx Oran.
 
 ## Highlights
 
