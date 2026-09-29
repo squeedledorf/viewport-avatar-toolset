@@ -33,6 +33,19 @@ An in-viewer edition that shares the same core and project files is in developme
 - **Reference and listing media.** A picture or a numbered picture sequence behind the avatar or on a plane in the scene, saved with the project; an animated GIF or PNG frames of the finished animation, with an optional turntable, for a listing.
 - **Familiar controls.** Industry (Maya-style), Blender, QAvimator and Second Life presets, an orthographic view, lighting presets and a plain backdrop, an audio track with beat markers, onion skinning with pinned ghosts, a hand poser, a pose and clip library, autosave with crash recovery, and built-in help.
 
+## In Second Life
+
+The same editor runs inside an SL viewer, on your own avatar, in-world. These are recordings from a live session (click a clip for the full-quality video).
+
+| | |
+|---|---|
+| [![Opening the VATs Editor from the Avatar menu in SoapStorm: the viewer UI steps aside and the editor takes the window](docs/media/showcase/01-open-editor.gif)](docs/media/showcase/01-open-editor.mp4) | [![An iPhone driving the avatar's face live through face tracking, down to a blink](docs/media/showcase/02-face-blink.gif)](docs/media/showcase/02-face-blink.mp4) |
+| **Opening the editor.** Avatar > VATs Editor, and the editor takes over your own avatar, locally. | **Face tracking.** An iPhone drives the face live, blinks included. |
+| [![Body motion capture over VMC: a wave, then a dab, played on the avatar in-world](docs/media/showcase/03-body-mocap-dab.gif)](docs/media/showcase/03-body-mocap-dab.mp4) | [![Posing a hand, then taking a starter sword into the fist and placing it with the gizmo](docs/media/showcase/04-sword-in-hand.gif)](docs/media/showcase/04-sword-in-hand.mp4) |
+| **Body capture.** A wave and a dab over the VMC protocol, straight onto the avatar. | **Props.** A hand pose, then the starter sword into the fist, placed with the gizmo. |
+| [![The Face window's sliders changing the eyes and expression on a mesh head](docs/media/showcase/05-face-sliders.gif)](docs/media/showcase/05-face-sliders.mp4) | [![A ragdoll fall simulated and baked to keys, then the animation uploaded and played in-world](docs/media/showcase/06-ragdoll.gif)](docs/media/showcase/06-ragdoll.mp4) |
+| **Face by hand.** The Face window's sliders on a mesh head. | **Ragdoll.** A fall simulated and baked to keys, then uploaded and played in-world. |
+
 ## In motion
 
 | | |
