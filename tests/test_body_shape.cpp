@@ -3,7 +3,9 @@
 
 #include "check.h"
 #include "fixtures.h"
+#include "vats/anim_convert.h"
 #include "vats/dae.h"
+#include "vats/edit.h"
 #include "vats/rig.h"
 
 using namespace vats;
@@ -72,4 +74,30 @@ TEST(body_shape_changes_the_ik_result) {
     double bend_plain = 2 * std::acos(std::min(1.0, std::fabs(plain.pose.rot[knee].w)));
     double bend_long = 2 * std::acos(std::min(1.0, std::fabs(longer.pose.rot[knee].w)));
     CHECK(std::fabs(bend_long - bend_plain) > 5 * kDegToRad);
+}
+
+TEST(body_swap_export_keys_positions_at_the_swapped_bodys_joints) {
+    // Spec 09 build 32: with View > Body swapping a mesh body in (the viewer), Bake shape "Your avatar" is that body for
+    // both IK and positions (App::export_shape, export_positions): a moving joint's position keys carry the body's own
+    // joint position, from its binds (shape_from_binds), not the SL default's.
+    const Skeleton& s = skel();
+    DaeModel m = long_legs(s);
+    Shape body;
+    CHECK(shape_from_binds(s, {&m}, nullptr, body));
+    const int knee = s.find("mKneeLeft");
+    CHECK(body.offset[knee].length() > 0.04);  // the longer shin: the knee sits 5 cm lower than the SL default's
+    Clip c;
+    c.fps = 30, c.end_frame = 10;
+    c.curves["mKneeLeft"]["pos_x"].set_key(0, 0);
+    c.curves["mKneeLeft"]["pos_x"].set_key(10, 0.02);
+    AnimExportOptions swapped{0, 0, 60};
+    swapped.shape = swapped.positions = &body;
+    const AnimImportResult on = import_anim(s, export_anim(s, c, swapped).file);
+    CHECK((curve_offset(on.clip, "mKneeLeft", 0) - body.offset[knee]).length() < 2e-4);
+    CHECK((curve_offset(on.clip, "mKneeLeft", 10) - body.offset[knee] - Vec3{0.02, 0, 0}).length() < 2e-4);
+    // A Mesh body bake shape without the swap keeps its old meaning: IK on the body, positions from the SL default.
+    AnimExportOptions ik_only{0, 0, 60};
+    ik_only.shape = &body;
+    const AnimImportResult off = import_anim(s, export_anim(s, c, ik_only).file);
+    CHECK(curve_offset(off.clip, "mKneeLeft", 0).length() < 2e-4);
 }
