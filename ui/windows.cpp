@@ -831,6 +831,8 @@ void App::draw_about() {
     if (ImGui::Begin("About Viewport Avatar Toolset", &show_about_, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking)) {
         ImGui::Text("Viewport Avatar Toolset %s", kVersion);
         ImGui::TextDisabled("An open-source animation editor for Second Life. LGPL-2.1.");
+        ImGui::TextDisabled("VATs is free. If you paid for it, you were misled: the official downloads are at");
+        ImGui::TextDisabled("github.com/squeedledorf/viewport-avatar-toolset/releases");
         ImGui::Separator();
         ImGui::BulletText("Skeleton, attachment points and avatar meshes: Second Life viewer data,");
         ImGui::TextDisabled("    (C) Linden Research, Inc., LGPL-2.1");

@@ -112,6 +112,8 @@ Bug reports and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) co
 
 ## Licence
 
+VATs is free and always will be. Get it only from the [Releases page](https://github.com/squeedledorf/viewport-avatar-toolset/releases); if you paid for it, you were misled. The names "Viewport Avatar Toolset" and "VATs" are covered by [TRADEMARK.md](TRADEMARK.md): forks are welcome under a name of their own.
+
 VATs is licensed under the GNU Lesser General Public License, version 2.1 only; see [LICENSE](LICENSE). The licence covers VATs' own code and data, not the animations you make with it: what you animate is yours.
 
 Bundled third-party code and data are under their own licences, listed in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) and [app/assets/props/CREDITS.md](app/assets/props/CREDITS.md).
