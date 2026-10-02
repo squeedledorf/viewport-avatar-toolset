@@ -105,15 +105,20 @@ int main(int argc, char** argv) {
                 "Usage: vats [options] [file.vat | file.anim | file.bvh]\n\n"
                 "Data:     --data-dir <dir>  --library-dir <dir>\n"
                 "Window:   --size <W>x<H>  --theme <name>  --preset <name>  --window <name>  --tab <name>\n"
-                "          --picker <page>[/<view>]  --picker-style <name>  --filter <text>\n"
-                "          --open-help <page>  --open-menu <menu>\n"
-                "Scene:    --light <name>  --backdrop  --body <id>  --reference <file.png>  --points\n"
-                "          --target <file.vat | file.anim>\n"
+                "          --picker <page>[/<view>]  --picker-style <name>  --filter <text>  --bone-filter <text>\n"
+                "          --open-help <page>  --open-menu <menu>  --workspace <name>  --pie <ring>[/<dir>]\n"
+                "Scene:    --light <name>  --backdrop  --body <id>  --reference <file.png>  --points  --physics\n"
+                "          --bones <stick | hidden>\n"
+                "          --target <file.vat | file.anim>  --mesh-body <file.dae | file.fbx>\n"
                 "          --frame <n>  --select <bone>  --select-all  --select-group <name>\n"
-                "          --select-prop <n>  --pose <slug>\n"
+                "          --select-prop <n>  --pose <slug>  --sit\n"
                 "          --tool <name>  --focus  --view <name>  --distance <m>\n"
-                "Import:   --import-prop <file>  --retarget <file>  --batch-retarget <folder>  --plan-clip <file>\n"
+                "Import:   --import-prop <file>  --import-body <a.dae,b.dae>  --map-rig <file>  --retarget <file>\n"
+                "          --rig-scratch <file>  --rig-groups <list>  --rig-marker <id=x,y,z>  --rig-weights  --rig-apply\n"
+                "          --paint <spec>\n"
+                "          --batch-retarget <folder>  --plan-clip <file>\n"
                 "Output:   --screenshot <file.png>  --shot-rect <window>  --listing <file>  --bench <seconds>\n"
+                "          --export-rig <file.dae>\n"
                 "Other:    --help  --version\n\n"
                 "Every option is described in Help > Command line.\n");
             return 0;
@@ -181,7 +186,7 @@ int main(int argc, char** argv) {
     std::string listing;  // --listing <file.gif|file.png>: listing media after the first frames (08 LM)
     std::string shot_rect;  // --shot-rect <window>: its rectangle in the screenshot, printed to stdout
     bool focus_on_start = false;
-    double distance = 0, bench_seconds = 0;  // --bench <s>: play, time each frame's sections, print, quit
+    double distance = 0, pitch = 1e9, bench_seconds = 0;  // --bench <s>: play, time each frame's sections, print, quit
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--screenshot" && i + 1 < argc)
@@ -198,10 +203,16 @@ int main(int argc, char** argv) {
             app.cli_view(argv[++i]) || std::fprintf(stderr, "unknown view %s\n", argv[i]);
         else if (a == "--distance" && i + 1 < argc)
             distance = std::atof(argv[++i]);
+        else if (a == "--pitch" && i + 1 < argc)
+            pitch = std::atof(argv[++i]);
         else if (a == "--body" && i + 1 < argc) {
             std::string b = argv[++i] == std::string("off") ? "none" : argv[i];
             for (int k = 0; k < vats::kBodyCount; ++k)
                 if (b == vats::kBodyIds[k]) app.set_body(k, false);  // this run only
+        } else if (a == "--mesh-body" && i + 1 < argc) {
+            app.cli_mesh_body(argv[++i]);
+        } else if (a == "--physics") {
+            app.cli_physics();
         } else if (a == "--points")
             app.show_points();
         else if (a == "--tool" && i + 1 < argc)
@@ -216,12 +227,37 @@ int main(int argc, char** argv) {
             app.cli_picker(argv[++i]) || std::fprintf(stderr, "unknown picker page %s\n", argv[i]);
         else if (a == "--picker-style" && i + 1 < argc)
             app.cli_picker_style(argv[++i]) || std::fprintf(stderr, "unknown picker style %s\n", argv[i]);
+        else if (a == "--bones" && i + 1 < argc)
+            app.cli_bone_style(argv[++i]) || std::fprintf(stderr, "unknown bone style %s\n", argv[i]);
         else if (a == "--window" && i + 1 < argc)
             app.show_window(argv[++i]) || std::fprintf(stderr, "unknown window %s\n", argv[i]);
         else if (a == "--shot-rect" && i + 1 < argc)
             shot_rect = argv[++i];
         else if (a == "--import-prop" && i + 1 < argc)
             app.cli_import_prop(argv[++i]);
+        else if (a == "--import-body" && i + 1 < argc) {  // files joined with commas, as one body, shown
+            std::vector<std::string> parts;
+            std::stringstream ss(argv[++i]);
+            for (std::string part; std::getline(ss, part, ',');)
+                if (!part.empty()) parts.push_back(part);
+            app.cli_import_body(parts);
+        }
+        else if (a == "--export-rig" && i + 1 < argc)  // as File > Export Rigged Mesh for SL... with its settings (08 RG)
+            app.cli_export_rig(argv[++i]);
+        else if (a == "--map-rig" && i + 1 < argc)  // as Rig > Map Rig to Second Life... on this model (08 RM)
+            app.open_rig_map(argv[++i]);
+        else if (a == "--rig-scratch" && i + 1 < argc)  // as Rig > Rig a Model from Scratch... on this model (08 RG-14)
+            app.open_rig_scratch(argv[++i]);
+        else if (a == "--rig-groups" && i + 1 < argc)  // its optional bones: "face,tail"
+            app.cli_rig_groups(argv[++i]) || std::fprintf(stderr, "unknown rig group in %s\n", argv[i]);
+        else if (a == "--rig-marker" && i + 1 < argc)  // a marker moved: "wrist_l=x,y,z"
+            app.cli_rig_marker(argv[++i]) || std::fprintf(stderr, "bad --rig-marker %s\n", argv[i]);
+        else if (a == "--rig-weights")  // the weights worked out now
+            app.cli_rig_weights();
+        else if (a == "--rig-apply")  // and Apply
+            app.cli_rig_apply();
+        else if (a == "--paint" && i + 1 < argc)  // 08 RG-15: one stroke "<joint> <add|subtract|smooth> <x> <y> <z> [<radius> <strength>]"
+            app.cli_paint(argv[++i]) || std::fprintf(stderr, "cannot paint %s\n", argv[i]);
         else if (a == "--retarget" && i + 1 < argc)  // as File > Import Animation (Retarget)...: the dialog opens
             app.open_retarget(argv[++i]);
         else if (a == "--plan-clip" && i + 1 < argc)  // 08 PP: the Priority Planner with this context clip
@@ -232,6 +268,10 @@ int main(int argc, char** argv) {
             app.show_tab(argv[++i]);
         else if (a == "--filter" && i + 1 < argc)
             app.set_inventory_filter(argv[++i]);
+        else if (a == "--bone-filter" && i + 1 < argc)
+            app.set_bone_filter(argv[++i]);
+        else if (a == "--sit")  // as Tools > Sit on Seat, at the current frame
+            app.cli_sit();
         else if (a == "--open-help" && i + 1 < argc) {  // a page title or file, optionally "#heading"
             const std::string page = argv[++i];
             const size_t hash = page.find('#');
@@ -255,6 +295,10 @@ int main(int argc, char** argv) {
             listing = argv[++i];
         else if (a == "--open-menu" && i + 1 < argc)  // a menu, or a path of menus: "Tools/Loop Tools"
             vats::force_open_menus(argv[++i]);
+        else if (a == "--workspace" && i + 1 < argc)  // pose, animate, face, rig, export or all: workspaces on, that one
+            app.cli_workspace(argv[++i]) || std::fprintf(stderr, "unknown workspace %s\n", argv[i]);
+        else if (a == "--pie" && i + 1 < argc)  // the Tab pie open: main or more, optionally /N, /NE ... hovered
+            app.cli_pie(argv[++i]) || std::fprintf(stderr, "unknown pie %s\n", argv[i]);
         else if (a == "--preset" && i + 1 < argc)
             app.set_preset(argv[++i]) || std::fprintf(stderr, "unknown preset %s\n", argv[i]);
         else if (exists(a))
@@ -304,6 +348,7 @@ int main(int argc, char** argv) {
         // (frames counts only in --screenshot and --bench runs).
         if (focus_on_start && ImGui::GetFrameCount() == 2) app.focus_selection();
         if (distance > 0 && ImGui::GetFrameCount() == 2) app.set_camera_distance(distance);
+        if (pitch < 1e8 && ImGui::GetFrameCount() == 2) app.set_camera_pitch(pitch);
         if (!screenshot.empty() && frames == 2) app.fit_graph();  // UI-10: the graph shows the whole clip
         if (vats::Profile::on) vats::Profile::add("app frame()", double(SDL_GetTicksNS() - frame_t0) * 1e-6);
         const Uint64 render_t0 = SDL_GetTicksNS();

@@ -123,3 +123,49 @@ Copyright (C) Linden Research, Inc.
 - Used for: the starter props in the Inventory.
 - Licence: CC0 1.0, except `pen.dae`, `microphone.dae` and `guitar.dae`, which are under CC BY 3.0. Authors,
   sources and the changes made are listed in `app/assets/props/CREDITS.md`.
+
+## Example mech body
+
+- Where: `data/bodies/mech/George.dae`, converted from `FBX/George.fbx` of the Animated Mech Pack (March 2021) by
+  Quaternius (https://quaternius.com) with `tools/rig_source_dae.cpp`: its own armature, skin and colours kept, the
+  animations and texture left out. `George.rigmap.json` beside it is VATs' mapping onto SL's skeleton.
+- Used for: the example body of Tools > Map Rig to Second Life and its help page, and the rig mapping tests.
+- Licence: CC0 1.0 (public domain dedication); Quaternius's `License.txt` is kept beside it.
+
+## Rig name tables and mapping ideas (Map Rig to Second Life)
+
+- Where: `data/retarget/biped.json`, `character-creator.json`, `mmd.json` and `mpfb.json` take their bone names from
+  the mapping tables of the VRM Add-on for Blender (https://github.com/saturday06/VRM-Addon-for-Blender, commit
+  `6502ad9`), used under the MIT option of its dual MIT / GPL-3.0 licence. Name variants were also checked against the
+  bone lists of the CATS Blender Plugin (https://github.com/absolute-quantum/cats-blender-plugin), MIT. The rig
+  mapper's approach of finding a limb's end first and walking up to its root, and of checking the mapping after
+  suggesting it, follows the bone mapper of the Godot Engine (`bone_map_editor_plugin.cpp`, commit
+  `12c17c1`), MIT. No code was copied; the tables are names, written out as VATs data.
+- Used for: suggesting how a rigged model's bones map onto SL's skeleton (`core/src/rig_map.cpp`).
+- Licence: MIT, below, for each of:
+
+Copyright (c) 2018 iCyP
+Copyright (c) 2022 saturday06
+(VRM Add-on for Blender)
+
+Copyright (c) 2017 GiveMeAllYourCats
+(CATS Blender Plugin)
+
+Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md).
+Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.
+(Godot Engine)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without
+limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.

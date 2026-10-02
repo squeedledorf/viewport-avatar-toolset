@@ -92,6 +92,32 @@ TEST(loop_points_weigh_legs_over_fingers) {
     CHECK(best[0].distance > 0);  // the finger still counts a little
 }
 
+// User test: on a finished seamless loop, Find listed other candidates at distance 0.00 and nothing said the loop
+// itself already joined. The current loop scores on the same scale: a seamless one as well as the best candidate,
+// one cut mid-cycle worse.
+TEST(loop_points_score_the_current_loop) {
+    Rig rig(skel());
+    Clip c;  // two smooth 40-frame cycles, looped over the first
+    c.fps = 30, c.end_frame = 80;
+    c.loop = true, c.loop_in = 0, c.loop_out = 40;
+    for (int f = 0; f <= 80; ++f) {
+        const double t = 2 * kPi * f / 40;
+        key_euler(c, "mHipLeft", f, {0, 25 * std::sin(t), 0});
+        key_euler(c, "mHipRight", f, {0, -25 * std::sin(t), 0});
+        key_euler(c, "mTorso", f, {0, 0, 5 * std::cos(t)});
+    }
+    const auto found = find_loop_points(rig, c, 20);
+    const LoopCandidate now = current_loop(rig, c);
+    CHECK(now.in == 0 && now.out == 40 && now.distance >= 0);
+    CHECK(loop_joins(now, found));
+    c.loop_out = 30;  // cut mid-cycle: candidates beat it
+    const LoopCandidate cut = current_loop(rig, c);
+    CHECK(cut.distance > 1);
+    CHECK(!loop_joins(cut, find_loop_points(rig, c, 20)));
+    c.loop = false;
+    CHECK(!loop_joins(current_loop(rig, c), found));
+}
+
 TEST(loop_points_min_length) {
     Rig rig(skel());
     for (auto& k : find_loop_points(rig, planted_cycle(24), 40, 10)) CHECK(k.length() >= 40);
@@ -198,6 +224,7 @@ TEST(treadmill_match_speed) {
     Rig rig(skel());
     Clip c = walk_in_place();
     const Gait g = measure_gait(rig, c);
+    CHECK_EQ(match_speed_frames(c, g, g.speed * 2), 15);  // the preview
     CHECK_EQ(match_speed_by_time(c, g, g.speed * 2), 15);  // twice as fast: half the frames
     CHECK_NEAR(measure_gait(rig, c).speed, g.speed * 2, g.speed * 0.2);
     CHECK(!match_speed_by_travel(c, 3.2));  // in place: no travel to scale

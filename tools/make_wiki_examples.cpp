@@ -35,6 +35,7 @@
 #include "vats/jump_arc.h"
 #include "vats/pose_ops.h"
 #include "vats/pose_presets.h"
+#include "vats/pose_tools.h"
 #include "vats/project.h"
 #include "vats/prop.h"
 #include "vats/ragdoll.h"
@@ -83,6 +84,25 @@ void key_rot(Clip& c, const std::string& bone, const std::vector<K>& keys) {
         for (int i = 0; i < 3; ++i) c.curves[bone][kRotChannels[i]].set_key(k.frame, v[i]);
     }
     for (auto& [name, curve] : c.curves[bone]) curve.recompute_handles();
+}
+
+// The rotation a drag on one ring of the Rotate gizmo (Local axes, the default) gives a bone that starts at `from`
+// (Euler degrees): `deg` about the bone's own X, Y or Z (axis 0, 1, 2) in its gizmo frame (Skeleton::bone_axes). The
+// beginner tutorials' targets are built this way, so a reader dragging that one ring can reach the target exactly
+// (the status bar's distance goes to 0), which a change of one Euler channel alone would not allow.
+Vec3 ring(const std::string& bone, const Vec3& from, int axis, double deg) {
+    const Quat a = skel().bone_axes(skel().find(bone), nullptr);
+    const Vec3 dir = axis == 0 ? Vec3{1, 0, 0} : axis == 1 ? Vec3{0, 1, 0} : Vec3{0, 0, 1};
+    const Quat q = euler_to_quat(from) * a * Quat::axis_angle(dir, deg * kDegToRad) * a.conj();
+    const Vec3 e = nearest_euler(q, from);
+    auto r = [](double v) { return std::round(v * 10) / 10 + 0.0; };  // as Properties shows; + 0.0: never -0
+    return {r(e.x), r(e.y), r(e.z)};
+}
+
+// What Mirror Bone to Other Side keys on the partner of a left-side bone at `rot` (Euler degrees), rounded as ring().
+Vec3 mirrored(const std::string& left, const Vec3& rot) {
+    const std::string right = left.substr(0, left.size() - 4) + "Right";
+    return ring(right, quat_to_euler(mirror_rotation(skel(), skel().find(left), skel().find(right), euler_to_quat(rot))), 0, 0);
 }
 
 // Keys all three position channels of a bone (metres).
@@ -177,22 +197,37 @@ Project graph_basics() {
 }
 
 // first-wave.vat, what the First steps tutorial builds: the Waving starter pose keyed at frame 0, then the right
-// forearm swung out (frame 10), in (frame 20) and back to where it started (frame 30), looping. Everything else
-// (30 fps, frames 0-30, priority 3, ease 0.8 s) is the new document's default.
+// forearm swung out (frame 10) and in (frame 20) with the rotate gizmo's blue ring, the hand carried a little further
+// each way than the forearm (a loose hand flops past where the forearm stops), and frame 0's pose pasted at frame 30
+// so the loop closes. Everything else (30 fps, frames 0-30, priority 3, ease 0.3 s) is the new document's default.
+// It is also the page's target ghost: at each frame the ghost shows the arm to match.
 Project first_wave() {
     Project p;
+    p.clip = new_project_clip();
     Clip& c = p.clip;
     c.loop = true;
-    // The Waving starter pose (core/src/pose_presets.cpp), as applying it at frame 0 keys it.
-    key_rot(c, "mCollarLeft", {{0, -5, 0, 0}});
-    key_rot(c, "mShoulderLeft", {{0, -78, 0, 0}});
-    key_rot(c, "mElbowLeft", {{0, 0, 0, -12}});
-    key_rot(c, "mCollarRight", {{0, -5, 0, 0}});
-    key_rot(c, "mShoulderRight", {{0, 49, -74, -30}});
-    key_rot(c, "mWristRight", {{0, -8, 11, 6}});
-    key_rot(c, "mHead", {{0, 3, 0, -5}});
-    // The tutorial's own keys: Rotation Z of the forearm typed in Properties.
-    key_rot(c, "mElbowRight", {{0, 0, 9, 91}, {10, 0, 9, 60}, {20, 0, 9, 110}, {30, 0, 9, 91}});
+    // The Waving starter pose (core/src/pose_presets.cpp), as applying it at frame 0 keys it, and as Paste Pose keys
+    // it again at frame 30.
+    for (double f : {0.0, 30.0}) {
+        key_rot(c, "mCollarLeft", {{f, -5, 0, 0}});
+        key_rot(c, "mShoulderLeft", {{f, -78, 0, 0}});
+        key_rot(c, "mElbowLeft", {{f, 0, 0, -12}});
+        key_rot(c, "mCollarRight", {{f, -5, 0, 0}});
+        key_rot(c, "mShoulderRight", {{f, 49, -74, -30}});
+        key_rot(c, "mHead", {{f, 3, 0, -5}});
+    }
+    // The tutorial's own keys, each one blue-ring drag from the Waving pose: the forearm 30 degrees out (away from the
+    // head) at 10 and 24 in at 20; the hand 20 further out and 18 further in.
+    const Vec3 elbow{0, 9, 91}, wrist{-8, 11, 6};
+    const Vec3 e10 = ring("mElbowRight", elbow, 2, -30), e20 = ring("mElbowRight", elbow, 2, 24);
+    const Vec3 w10 = ring("mWristRight", wrist, 2, -20), w20 = ring("mWristRight", wrist, 2, 18);
+    key_rot(c, "mElbowRight", {{0, elbow.x, elbow.y, elbow.z}, {10, e10.x, e10.y, e10.z}, {20, e20.x, e20.y, e20.z},
+                               {30, elbow.x, elbow.y, elbow.z}});
+    key_rot(c, "mWristRight", {{0, wrist.x, wrist.y, wrist.z}, {10, w10.x, w10.y, w10.z}, {20, w20.x, w20.y, w20.z},
+                               {30, wrist.x, wrist.y, wrist.z}});
+    if (std::getenv("VATS_EXAMPLES_LINT"))
+        std::printf("first-wave: elbow %.1f %.1f %.1f / %.1f %.1f %.1f, wrist %.1f %.1f %.1f / %.1f %.1f %.1f\n", e10.x,
+                    e10.y, e10.z, e20.x, e20.y, e20.z, w10.x, w10.y, w10.z, w20.x, w20.y, w20.z);
     return p;
 }
 
@@ -610,6 +645,34 @@ Project target_head_turn() {
     return p;
 }
 
+// Deformers page: a one-second deformer that keys only the neck's position (at rest on frame 0), so an AO keeps the
+// rest of the body. The reader drags the neck up at frame 30.
+Project deformer_start() {
+    Project p;
+    Clip& c = p.clip;
+    c.end_frame = 30, c.loop_out = 30, c.ease_in = c.ease_out = 0.3;
+    key_pos(c, "mNeck", {{0, 0, 0, 0}});
+    return p;
+}
+
+// Its target: the neck 25 cm longer by frame 30, growing from rest.
+Project deformer_long_neck() {
+    Project p = deformer_start();
+    key_pos(p.clip, "mNeck", {{30, 0, 0, 0.25}});
+    return p;
+}
+
+// The finished deformer: the same neck, exported as long_neck with Hold without sinking and an undeformer.
+Project deformer_held() {
+    Project p = deformer_long_neck();
+    Json& ex = p.clip.export_settings;
+    ex = Json::object();
+    ex.set("name", std::string("long_neck"));
+    ex.set("hold_no_sink", true);
+    ex.set("undeformer", true);
+    return p;
+}
+
 // Idle layer page: Relaxed Stand held over a 4-second loop, with a breath and a sway layer, neither baked yet.
 Project idle_stand() {
     Project p;
@@ -839,6 +902,30 @@ void print_lint(const char* what, const Clip& c) {
 
 // Keys an arm in FK so its wrist reaches `at` (avatar space, metres) with the elbow towards `pole`: IK solves it on a
 // copy and the shoulder and elbow get the rotations it found.
+// Posing page, Auto IK: Relaxed Stand held over 24 frames, keyed at 0 only; the reader drags the left ankle's dot at 12.
+Project posing_leg_lift() {
+    Project p;
+    p.clip.end_frame = 24;
+    starter(p.clip, "body-stand", 0);
+    return p;
+}
+
+// Its target: the left ankle dragged 20 cm forward and 30 cm up at frame 12 with Auto IK (the hip and knee keyed there),
+// as the drag in View > Left leaves it on the default body.
+Project target_leg_lift() {
+    Project p = posing_leg_lift();
+    const Rig rig(skel());
+    const int ankle = skel().find("mAnkleLeft");
+    const Evaluation start = evaluate(rig, p.clip, 12, g_shape);
+    key_auto_ik(p.clip, rig, 12, auto_ik_chain(rig, p.clip, 12, ankle), start, start.globals[ankle].pos + Vec3{0.20, 0, 0.30},
+                g_shape);
+    for (const char* b : {"mHipLeft", "mKneeLeft"}) {
+        const Vec3 e = curve_euler(p.clip, b, 12);
+        std::printf("  leg lift %s: %.1f %.1f %.1f\n", b, e.x, e.y, e.z);
+    }
+    return p;
+}
+
 void reach_fk(Clip& c, const char* limb, double frame, const Vec3& at, const Vec3& pole) {
     Rig rig(skel());
     const int l = rig.find_limb(limb);
@@ -1249,18 +1336,22 @@ Project polish_heavy() {
     return p;
 }
 
-// Tutorial "Your first pose": the Victory pose it builds at frame 0. Relaxed Stand, the left arm raised (shoulder X 50,
-// elbow Z -35) and mirrored onto the right, the right arm lowered to X -35, the head tilted and lifted, fists on both hands.
+// Tutorial "Your first pose": the Victory pose it builds at frame 0, posed from the hips outward by dragging the rotate
+// gizmo's rings onto target-first-pose.vat (this pose, shown as the target ghost). Contrapposto (the weight on the right
+// leg), the chest lifted, the left arm thrown up, Mirror Bone to Other Side for the right, which is then lowered, the
+// chin up and turned towards the high fist, fists on both hands. The elbows keep Contrapposto's soft bend. Round
+// numbers: a reader's drags land within a few degrees of them, which the target's distance shows as green.
 Project tutorial_first_pose() {
     Project p;
-    Clip& c = p.clip;
-    c.loop_tangents = true;  // a new project's default (ui/app.cpp)
-    starter(c, "body-stand", 0);
-    key_euler(c, "mShoulderLeft", 0, {50, 0, 0});
-    key_euler(c, "mElbowLeft", 0, {0, 0, -35});
-    key_euler(c, "mShoulderRight", 0, {-35, 0, 0});  // Mirror Left to Right gives -50; the tutorial lowers it
-    key_euler(c, "mElbowRight", 0, {0, 0, 35});
-    key_euler(c, "mHead", 0, {-8, -12, 0});
+    p.clip = new_project_clip();  // as File > New makes it: loop-aware tangents, ease 0.3 s
+    Clip& c = p.clip;  // a new project's default (ui/app.cpp)
+    starter(c, "body-contrapposto", 0);
+    // Each a ring drag from Contrapposto's pose (see ring()).
+    key_euler(c, "mChest", 0, ring("mChest", {3, 0, -2}, 1, -8));             // lifted: the ribs back over the hips
+    const Vec3 up = ring("mShoulderLeft", {-77, 0, 0}, 0, 142);               // thrown up
+    key_euler(c, "mShoulderLeft", 0, up);
+    key_euler(c, "mShoulderRight", 0, ring("mShoulderRight", mirrored("mShoulderLeft", up), 0, 25));  // then lowered
+    key_euler(c, "mHead", 0, ring("mHead", ring("mHead", {-4, 2, 4}, 1, -17), 2, 8));  // chin up, turned to the fist
     starter(c, "hand-fist", 0);
     starter(c, "hand-fist", 0, true);
     return p;
@@ -1270,8 +1361,8 @@ Project tutorial_first_pose() {
 // still to frame 30. Auto tangents (eased), or every key Linear for the comparison.
 Project tutorial_nod(bool linear) {
     Project p;
+    p.clip = new_project_clip();  // as File > New makes it: loop-aware tangents, ease 0.3 s
     Clip& c = p.clip;
-    c.loop_tangents = true;
     starter(c, "body-stand", 0);
     key_euler(c, "mHead", 0, {0, 0, 0});
     key_euler(c, "mHead", 8, {0, 20, 0});
@@ -1290,8 +1381,8 @@ Project tutorial_nod(bool linear) {
 // copy of frame 0.
 Project tutorial_breathing_idle() {
     Project p;
+    p.clip = new_project_clip();  // as File > New makes it: loop-aware tangents, ease 0.3 s
     Clip& c = p.clip;
-    c.loop_tangents = true;
     c.end_frame = 120, c.loop = true, c.loop_in = 0, c.loop_out = 120, c.priority = 2;
     starter(c, "body-stand", 0);
     for (double f : {0.0, 120.0}) {
@@ -1300,10 +1391,13 @@ Project tutorial_breathing_idle() {
         key_euler(c, "mCollarRight", f, {5, 0, 0});
         key_euler(c, "mHead", f, {0, 0, 0});
     }
-    key_euler(c, "mChest", 48, {0, -4, 0});
-    key_euler(c, "mCollarLeft", 48, {-2, 0, 0});
-    key_euler(c, "mCollarRight", 48, {2, 0, 0});
-    key_euler(c, "mHead", 48, {0, 2, 0});
+    // The in-breath, each a ring drag (see ring()): the chest back on its green ring, the left collar up on its red one
+    // and mirrored onto the right, the head forward on its green ring.
+    const Vec3 collar = ring("mCollarLeft", {-5, 0, 0}, 0, 3);
+    key_euler(c, "mChest", 48, ring("mChest", {0, 0, 0}, 1, -4));
+    key_euler(c, "mCollarLeft", 48, collar);
+    key_euler(c, "mCollarRight", 48, mirrored("mCollarLeft", collar));
+    key_euler(c, "mHead", 48, ring("mHead", {0, 0, 0}, 1, 2));
     return p;
 }
 
@@ -1983,14 +2077,19 @@ void pin(Clip& c, const char* bone, const char* to, double frame) {
     }
 }
 
-// Tutorial: a sit pose for furniture (sit-chair.vat). The Sitting starter pose on the starter Chair: the hips dropped until the feet
-// touch the floor (the Animation Check's fix), the ankles held there, the hips raised onto the seat, the wrists bound
-// to the thighs and the back leaned into the chair. A static pose: keys at frame 0 only, looping, priority 4.
-// sit-start.vat is steps 1 and 2: the chair and the Sitting pose, nothing else.
+// Tutorial: a sit pose for furniture (sit-chair.vat), as the page builds it: the starter Chair; Sit on This (the Sitting
+// pose, the hips dropped until the feet reach the floor, the ankles held there, the hips raised until the thighs rest
+// on the seat: core sit_on_seat with the seat the app finds, 46 cm up); the wrists bound to the thighs; the back
+// leaned into the chair with the head countering it and turned a little; both hands in Resting on Surface. A static
+// pose: keys at frame 0 only, looping, priority 4. sit-start.vat is step 1: the chair, nothing else.
+// The starter Chair's seat height (m), where Sit on This finds it: ui/props.cpp casts rays down onto the mesh under the
+// thighs.
+constexpr double kChairSeat = 0.46;
+
 Project sit_start() {
     Project p;
+    p.clip = new_project_clip();
     p.clip.props.push_back(starter_prop("chair"));
-    starter(p.clip, "body-sit", 0);
     return p;
 }
 
@@ -1998,14 +2097,21 @@ Project sit_chair() {
     Project p = sit_start();
     Clip& c = p.clip;
     c.loop = true, c.loop_out = 30, c.priority = 4, c.ease_in = 0.5, c.ease_out = 0.5;
-    key_offset(c, "mPelvis", 0, {0, 0, -0.49});  // Drop the Hips by 4.0 cm: the feet on the floor
-    pin(c, "mAnkleLeft", nullptr, 0);
-    pin(c, "mAnkleRight", nullptr, 0);
-    key_offset(c, "mPelvis", 0, {0, 0, -0.43});  // onto the seat; the held feet stay on the floor
+    starter(c, "body-sit", 0);
+    {
+        Rig rig(skel());
+        std::string report;
+        if (!sit_on_seat(c, rig, 0, kChairSeat, g_shape, report)) {
+            std::fprintf(stderr, "sit refused: %s\n", report.c_str());
+            std::exit(2);
+        }
+    }
     pin(c, "mWristLeft", "mHipLeft", 0);
     pin(c, "mWristRight", "mHipRight", 0);
-    key_euler(c, "mTorso", 0, {0, -12, 0});  // leaned back into the chair
-    key_euler(c, "mHead", 0, {0, 12, 0});    // eyes level again
+    key_euler(c, "mTorso", 0, ring("mTorso", {0, 0, 0}, 1, -12));  // leaned back until the shoulders meet the chair back
+    key_euler(c, "mHead", 0, ring("mHead", ring("mHead", {0, 0, 0}, 1, 10), 2, 8));  // eyes level, turned a little left
+    starter(c, "hand-surface", 0);
+    starter(c, "hand-surface", 0, true);
     c.export_settings.set("name", "Sit");
     Json heights = Json::array();  // Also export for heights, as ticking it sets them
     for (double h : {1.75, 1.95, 2.15}) heights.push(h);
@@ -2461,7 +2567,12 @@ int main(int argc, char** argv) {
     ok &= write(dir + "prop-in-hand.vat", prop_in_hand());
     ok &= write(dir + "posing-head-turn.vat", posing_head_turn());
     ok &= write(dir + "target-head-turn.vat", target_head_turn());
+    ok &= write(dir + "posing-leg-lift.vat", posing_leg_lift());
+    ok &= write(dir + "target-leg-lift.vat", target_leg_lift());
     ok &= write(dir + "keys-head-nod.vat", keys_head_nod());
+    ok &= write(dir + "deformer-start.vat", deformer_start());
+    ok &= write(dir + "deformer-long-neck.vat", deformer_long_neck());
+    ok &= write(dir + "deformer-held.vat", deformer_held());
     ok &= write(dir + "ik-reach.vat", ik_reach());
     ok &= write(dir + "hold-hand-on-table.vat", hold_hand_on_table());
     ok &= write(dir + "hand-poser-fist.vat", hand_poser_fist());

@@ -1,5 +1,5 @@
 Description (one line, 350 characters max):
-Free, open-source animation editor for Second Life's Bento avatar: pose on a timeline with IK, pins, a graph editor and a dope sheet, bring in motion by retargeting or live capture, animate the face and lip sync, check the result as Second Life plays it, and export .anim files that upload as they are. Linux and Windows. LGPL-2.1.
+Free, open-source animation editor for Second Life's Bento avatar: pose on a timeline with IK, a graph editor and a dope sheet, bring in motion by retargeting or live capture, animate the face, check the result as Second Life plays it, export .anim files that upload as they are, and rig your own models for SL. Linux and Windows. LGPL-2.1.
 
 Topics (8-15):
 second-life

@@ -17,7 +17,8 @@ struct DialogCall {
     std::vector<ui::FileFilter> filters;
     std::vector<SDL_DialogFileFilter> sdl;
     ui::FilesChosen done;
-    DialogCall(const std::vector<ui::FileFilter>& f, ui::FilesChosen d) : filters(f), done(std::move(d)) {
+    SDL_Window* window;
+    DialogCall(const std::vector<ui::FileFilter>& f, ui::FilesChosen d, SDL_Window* w) : filters(f), done(std::move(d)), window(w) {
         for (const ui::FileFilter& x : filters) sdl.push_back({x.name.c_str(), x.patterns.c_str()});
     }
 };
@@ -27,6 +28,9 @@ void SDLCALL dialog_done(void* user, const char* const* files, int) {
     std::vector<std::string> chosen;
     for (int i = 0; files && files[i]; ++i) chosen.push_back(files[i]);
     call->done(std::move(chosen));
+    // The editor takes the keyboard back as the dialog goes: without that, on a desktop that leaves the focus on the
+    // dialog's dead window, no shortcut worked until the window was clicked (user test). Raising is main-thread only.
+    SDL_RunOnMainThread([](void* w) { SDL_RaiseWindow(static_cast<SDL_Window*>(w)); }, call->window, false);
 }
 
 std::string find_packaging_dir() {
@@ -160,18 +164,18 @@ Projector SdlHost::projector(ImVec2 origin, ImVec2 size) {
 // --- Dialogs ---
 
 void SdlHost::open_file_dialog(const std::vector<ui::FileFilter>& filters, bool multiple, ui::FilesChosen done) {
-    auto* call = new DialogCall(filters, std::move(done));
+    auto* call = new DialogCall(filters, std::move(done), window_);
     SDL_ShowOpenFileDialog(dialog_done, call, window_, call->sdl.data(), int(call->sdl.size()), nullptr, multiple);
 }
 
 void SdlHost::save_file_dialog(const std::vector<ui::FileFilter>& filters, const std::string& suggested, ui::FilesChosen done) {
-    auto* call = new DialogCall(filters, std::move(done));
+    auto* call = new DialogCall(filters, std::move(done), window_);
     SDL_ShowSaveFileDialog(dialog_done, call, window_, call->sdl.data(), int(call->sdl.size()),
                            suggested.empty() ? nullptr : suggested.c_str());
 }
 
 void SdlHost::open_folder_dialog(const std::string& start, ui::FilesChosen done) {
-    auto* call = new DialogCall({}, std::move(done));
+    auto* call = new DialogCall({}, std::move(done), window_);
     SDL_ShowOpenFolderDialog(dialog_done, call, window_, start.empty() ? nullptr : start.c_str(), false);
 }
 

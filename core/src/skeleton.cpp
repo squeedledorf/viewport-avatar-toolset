@@ -3,6 +3,7 @@
 #include "vats/skeleton.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cctype>
 #include <cstdio>
@@ -212,10 +213,7 @@ bool Skeleton::load(std::string_view skeleton_xml, std::string_view lad_xml, std
     for (int i = 0; i < static_cast<int>(volumes_.size()); ++i) volume_index_.emplace(volumes_[i].name, i);
 
     mirror_.resize(nodes_.size());
-    for (int i = 0; i < size(); ++i) {
-        int m = find(mirror_name(nodes_[i].name));
-        mirror_[i] = m >= 0 ? m : i;
-    }
+    set_reused({});  // pairs every bone with its other side's
 
     // Male shape: <param id="32"> param_skeleton at weight 1.
     male_.scale.assign(nodes_.size(), {1, 1, 1});
@@ -263,6 +261,27 @@ int Skeleton::find_viewer(std::string_view name) const {
 int Skeleton::find_volume(std::string_view name) const {
     auto it = volume_index_.find(std::string(name));
     return it != volume_index_.end() ? it->second : -1;
+}
+
+void Skeleton::set_reused(const std::vector<int>& nodes) {
+    reused_.assign(nodes_.size(), 0);
+    for (int i = 0; i < size(); ++i) {
+        const int m = find(mirror_name(nodes_[i].name));
+        mirror_[i] = m >= 0 ? m : i;
+    }
+    for (int n : nodes) {
+        if (n < 0 || n >= size()) continue;
+        reused_[n] = 1;
+        mirror_[mirror_[n]] = mirror_[n];  // the partner keeps to itself too: nothing mirrors onto the reused bone
+        mirror_[n] = n;
+    }
+}
+
+std::string Skeleton::mirror_of(std::string_view name) const {
+    const bool pin = name.substr(0, 4) == "pin:";
+    const int n = find(pin ? name.substr(4) : name);
+    if (n < 0) return mirror_name(name);
+    return (pin ? "pin:" : "") + nodes_[mirror_[n]].name;
 }
 
 std::string Skeleton::mirror_name(std::string_view name) {
@@ -314,11 +333,42 @@ Xform Skeleton::local_xform(int i, const Pose& pose, const Shape* shape) const {
     return {n.rest * pose.rot[i], t};
 }
 
-Pose Skeleton::pose_from_live(const std::vector<Quat>& local, const Vec3& pelvis) const {
+Pose Skeleton::pose_from_live(const std::vector<Quat>& local, const Vec3& pelvis, const Vec3& rest) const {
     Pose p(nodes_.size());
     for (size_t i = 0; i < nodes_.size() && i < local.size(); ++i) p.rot[i] = (nodes_[i].rest.conj() * local[i]).normalized();
-    if (!nodes_.empty()) p.offset[0] = pelvis - nodes_[0].pos;
+    if (!nodes_.empty()) p.offset[0] = pelvis - rest;
     return p;
+}
+
+Vec3 Skeleton::worn_pelvis_rest(double worn_pelvis_to_foot) const {
+    if (nodes_.empty()) return {};
+    return nodes_[0].pos + Vec3{0, 0, worn_pelvis_to_foot - sl_body_size(*this).pelvis_to_foot};
+}
+
+SlBodySize sl_body_size(const Skeleton& skel, const Pose* pose, const Shape* shape) {
+    // The joint's position in its parent's frame (LLJoint::getPosition) and its scale (getScale), by name.
+    auto at = [&](const char* name, Vec3* scale) {
+        const int i = skel.find(name);
+        if (i < 0 || skel[i].name != name) {
+            if (scale) *scale = {1, 1, 1};
+            return Vec3{};
+        }
+        Vec3 p = skel[i].pos;
+        if (pose && size_t(i) < pose->offset.size()) p += pose->offset[size_t(i)];
+        if (shape && size_t(i) < shape->offset.size()) p += shape->offset[size_t(i)];
+        if (scale) *scale = shape && size_t(i) < shape->scale.size() ? shape->scale[size_t(i)] : Vec3{1, 1, 1};
+        return p;
+    };
+    Vec3 pelvis_s, neck_s, chest_s, head_s, torso_s, hip_s, knee_s, ankle_s;
+    at("mPelvis", &pelvis_s);
+    const Vec3 skull = at("mSkull", nullptr), neck = at("mNeck", &neck_s), chest = at("mChest", &chest_s);
+    const Vec3 head = at("mHead", &head_s), torso = at("mTorso", &torso_s), hip = at("mHipLeft", &hip_s);
+    const Vec3 knee = at("mKneeLeft", &knee_s), ankle = at("mAnkleLeft", &ankle_s), foot = at("mFootLeft", nullptr);
+    SlBodySize b;
+    b.pelvis_to_foot = hip.z * pelvis_s.z - knee.z * hip_s.z - ankle.z * knee_s.z - foot.z * ankle_s.z;
+    b.height = b.pelvis_to_foot + std::sqrt(2.0) * (skull.z * head_s.z) + head.z * neck_s.z + neck.z * chest_s.z +
+               chest.z * torso_s.z + torso.z * pelvis_s.z;
+    return b;
 }
 
 std::vector<Xform> Skeleton::global_pose(const Pose& pose, const Shape* shape) const {
@@ -328,6 +378,108 @@ std::vector<Xform> Skeleton::global_pose(const Pose& pose, const Shape* shape) c
         g[i] = nodes_[i].parent >= 0 ? g[nodes_[i].parent] * l : l;
     }
     return g;
+}
+
+Vec3 bone_tail(const Skeleton& skel, const std::vector<Xform>& globals, const Shape* shape, int i) {
+    if (shape && i < static_cast<int>(shape->tails.size()) && shape->tails[i].length() > 0)
+        return globals[i].apply(shape->tails[i]);
+    const Vec3 end = shape ? skel[i].end.mul(shape->scale[i]) : skel[i].end;
+    return globals[i].apply(end);
+}
+
+VolumeShell volume_shell(const std::vector<Xform>& globals, const Shape* shape, const CollisionVolume& v) {
+    const Vec3 k = shape && v.node < static_cast<int>(shape->scale.size()) ? shape->scale[v.node] : Vec3{1, 1, 1};
+    return {globals[v.node], v.scale.mul(k)};
+}
+
+double ray_shell(const Vec3& o, const Vec3& d, const VolumeShell& shell) {
+    // Into the unit sphere's space: the ray stays a line and t keeps its meaning.
+    const Xform inv = shell.frame.inverse();
+    const Vec3 a = shell.axes, p = inv.apply(o), r = inv.rot.rotate(d);
+    const Vec3 q{p.x / a.x, p.y / a.y, p.z / a.z}, u{r.x / a.x, r.y / a.y, r.z / a.z};
+    const double A = u.dot(u), B = q.dot(u), C = q.dot(q) - 1;
+    if (C <= 0) return 0;
+    const double disc = B * B - A * C;
+    if (A < 1e-30 || disc < 0) return 1e30;
+    const double t = (-B - std::sqrt(disc)) / A;
+    return t >= 0 ? t : 1e30;
+}
+
+std::vector<StickSegment> stick_segments(const Skeleton& skel, const std::vector<Xform>& globals, const Shape* shape,
+                                         const std::vector<bool>& shown) {
+    std::vector<StickSegment> out;
+    auto on = [&](int i) { return shown.empty() || (i < static_cast<int>(shown.size()) && shown[i]); };
+    for (int i = 0; i < skel.joint_count(); ++i) {
+        if (!on(i)) continue;
+        bool child = false;
+        for (int c : skel[i].children)
+            if (c < skel.joint_count() && on(c)) out.push_back({i, globals[i].pos, globals[c].pos, false}), child = true;
+        if (child) continue;
+        const bool fitted = shape && i < static_cast<int>(shape->tails.size()) && shape->tails[i].length() > 0;
+        const Vec3 d = bone_tail(skel, globals, shape, i) - globals[i].pos;
+        const double len = d.length();
+        if (len < 1e-5) continue;
+        out.push_back({i, globals[i].pos, globals[i].pos + d * (fitted ? 1.0 : std::min(1.0, 0.05 / len)), true});
+    }
+    return out;
+}
+
+std::vector<int> pick_sticks(const Skeleton& skel, const std::vector<Xform>& globals, const Shape* shape,
+                             const std::vector<bool>& shown, bool sticks,
+                             const std::function<bool(const Vec3&, double&, double&)>& to_screen, double mx, double my) {
+    // The drawn sizes (ui draw_stick_bones and the attachment point dots), in pixels.
+    constexpr double kDot = 3.2 + 1.2, kRing = 3.2, kRingStep = 3.5, kRingHalf = 1.8, kPoint = 4.5;
+    constexpr double kOnTop = -100;  // inside a drawn dot or ring: ahead of every stick
+    auto on = [&](int i) { return i < static_cast<int>(shown.size()) && shown[i]; };
+    auto dist = [&](const Vec3& p, double& d) {
+        double x, y;
+        if (!to_screen(p, x, y)) return false;
+        d = std::hypot(mx - x, my - y);
+        return true;
+    };
+    std::vector<std::pair<double, int>> hits;
+    if (sticks) {
+        std::vector<double> best(static_cast<size_t>(skel.joint_count()), 1e30);
+        for (const StickSegment& g : stick_segments(skel, globals, shape, shown)) {
+            double ax, ay, bx, by;
+            if (!to_screen(g.a, ax, ay) || !to_screen(g.b, bx, by)) continue;
+            const double abx = bx - ax, aby = by - ay, apx = mx - ax, apy = my - ay;
+            const double t = std::clamp((apx * abx + apy * aby) / std::max(abx * abx + aby * aby, 1e-9), 0.0, 1.0);
+            if (const double d = std::hypot(apx - abx * t, apy - aby * t); d <= 10.0)
+                best[g.node] = std::min(best[g.node], d + 0.04 * std::min(std::hypot(abx, aby), 200.0));
+        }
+        for (int i = 0; i < skel.joint_count(); ++i) {
+            double d;
+            if (!on(i)) continue;
+            if (dist(globals[i].pos, d)) {
+                int fold = 0;  // the shown joints before it on the same spot: drawn as a ring around them
+                for (int j = 0; j < i; ++j)
+                    if (on(j) && (globals[j].pos - globals[i].pos).length() < 0.002) ++fold;
+                if (fold > 0) {
+                    if (const double rd = std::fabs(d - (kRing + fold * kRingStep)); rd <= 5.0)
+                        best[i] = std::min(best[i], rd * 0.5 + (rd <= kRingHalf ? kOnTop : 0));
+                }
+                // On the spot itself the stacked joints rank by order, so stepping walks the stack.
+                if (d <= 9.0) best[i] = std::min(best[i], d * 0.5 + fold * 1e-4 + (d <= kDot ? kOnTop : 0));
+            }
+            if (best[i] < 1e30) hits.emplace_back(best[i], i);
+        }
+    }
+    for (int i = skel.joint_count(); i < skel.size(); ++i) {  // attachment points (a dot each) and collision volumes
+        double d;
+        if (on(i) && dist(globals[i].pos, d) && d <= 9.0)
+            hits.emplace_back(d * 0.5 + (!skel[i].volume && d <= kPoint ? kOnTop : 0), i);
+    }
+    std::sort(hits.begin(), hits.end());
+    std::vector<int> ranked;
+    for (const auto& h : hits) ranked.push_back(h.second);
+    return ranked;
+}
+
+int next_stacked(const std::vector<int>& ranked, int current, int pick) {
+    const auto it = std::find(ranked.begin(), ranked.end(), current);
+    if (ranked.size() < 2 || it == ranked.end()) return pick;
+    return ranked[size_t(it - ranked.begin() + 1) % ranked.size()];
 }
 
 }  // namespace vats

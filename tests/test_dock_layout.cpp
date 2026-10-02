@@ -93,3 +93,39 @@ TEST(dock_layout_undock_redock_and_reset) {
     CHECK(props->DockNode && props->DockNode->ID == right);
     ImGui::DestroyContext(ctx);
 }
+
+// Interface size (design review #7): the panels around the view grow with the text, and a side panel never gets
+// narrower than its minimum while the view has room.
+TEST(dock_side_panels_scale_and_keep_a_minimum) {
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.IniFilename = nullptr;
+    io.DisplaySize = ImVec2(1600, 900);
+    io.DeltaTime = 1.f / 60;
+    unsigned char* px;
+    int w, h;
+    io.Fonts->GetTexDataAsRGBA32(&px, &w, &h);
+    Ui ui;
+    for (int i = 0; i < 3; ++i) ui.frame(ImVec2(1, 1), false);
+    ImGuiWindow* props = Ui::window("Properties");
+    ImGuiWindow* bones = Ui::window("Bones");
+    ImGuiWindow* graph = Ui::window("Graph");
+    const float props_w = props->DockNode->Size.x, bones_w = bones->DockNode->Size.x, graph_h = graph->DockNode->Size.y;
+
+    // Twice the interface size: the side panels twice as wide (the view keeps the rest), the bottom row taller.
+    fit_side_panels(ui.dock, 2, 0);
+    for (int i = 0; i < 2; ++i) ui.frame(ImVec2(1, 1), false);
+    CHECK_NEAR(props->DockNode->Size.x, 2 * props_w, 2);
+    CHECK_NEAR(bones->DockNode->Size.x, 2 * bones_w, 2);
+    CHECK(graph->DockNode->Size.y > graph_h * 1.2f);
+    CHECK(ImGui::DockBuilderGetCentralNode(ui.dock)->Size.x > 100);
+
+    // A side panel dragged narrow: held at the minimum.
+    ImGuiDockNode* left = bones->DockNode;
+    left->SizeRef.x = left->Size.x = 60;
+    fit_side_panels(ui.dock, 1, 200);
+    for (int i = 0; i < 2; ++i) ui.frame(ImVec2(1, 1), false);
+    CHECK_NEAR(bones->DockNode->Size.x, 200, 2);
+    ImGui::DestroyContext(ctx);
+}

@@ -158,3 +158,134 @@ TEST(sl_camera_stays_above_ground) {
     slcam::orbit_over(cam, f, -1.2);
     CHECK(cam.eye().z < 0);
 }
+
+// A focus glide interrupted by an orbit: input updates the target while easing carries on.
+// The camera ends at the combined target, with no per-frame step larger than allowed by easing.
+TEST(camera_glide_interrupted_by_orbit_blends_smoothly) {
+    Camera cam;
+    cam.target = {0, 0, 1.0};
+    cam.yaw = 0.2;
+    cam.pitch = 0.1;
+    cam.distance = 3.0;
+
+    CameraGlide glide;
+    const Vec3 new_focus{1.0, 2.0, 1.5};
+    glide.focus_on(cam, new_focus);
+    CHECK(glide.active);
+
+    const double dt = 1.0 / 60.0;
+    // Advance 6 frames (~0.1 s into the glide)
+    for (int i = 0; i < 6; ++i) {
+        glide.update(cam, dt);
+    }
+    CHECK(glide.active);
+    CHECK((cam.target - new_focus).length() > 0.1);  // still in flight
+
+    // Interrupt the glide with an orbit around the focus
+    const double orbit_angle = 0.35;
+    const slcam::Focus f = avatar();
+    glide.apply_input(cam, [&](Camera& c) {
+        slcam::orbit_around(c, f, orbit_angle);
+    });
+
+    const Camera target_state = glide.target_cam;
+    // Step until the glide finishes, verifying no sudden per-frame jump occurred
+    double max_yaw_step = 0;
+    double max_target_step = 0;
+    int steps = 0;
+    while (glide.active && steps < 600) {
+        Camera prev = cam;
+        glide.update(cam, dt);
+        const double dyaw = std::abs(std::remainder(cam.yaw - prev.yaw, 2 * kPi));
+        const double dpos = (cam.target - prev.target).length();
+        if (dyaw > max_yaw_step) max_yaw_step = dyaw;
+        if (dpos > max_target_step) max_target_step = dpos;
+        steps++;
+    }
+
+    CHECK(!glide.active);
+    // Ends at the combined target
+    CHECK_NEAR((cam.target - new_focus).length(), 0, 1e-4);
+    CHECK_NEAR(std::remainder(cam.yaw - target_state.yaw, 2 * kPi), 0, 1e-4);
+    CHECK_NEAR(cam.distance, target_state.distance, 1e-4);
+    CHECK_NEAR(cam.pitch, target_state.pitch, 1e-4);
+
+    // With dt = 1/60 and half_life = 0.06, the maximum easing factor per frame is ~0.175.
+    // An immediate snap would produce a yaw step of >= 0.35 or a pos step of >= 0.5.
+    // The per-frame step is smoothly bounded by easing.
+    CHECK(max_yaw_step < 0.15);
+    CHECK(max_target_step < 0.3);
+}
+
+TEST(camera_glide_reduce_motion_is_instant) {
+    Camera cam;
+    cam.target = {0, 0, 1.0};
+    cam.yaw = 0.2;
+    cam.pitch = 0.1;
+    cam.distance = 3.0;
+
+    CameraGlide glide;
+    const Vec3 new_focus{1.0, 2.0, 1.5};
+    glide.focus_on(cam, new_focus);
+    CHECK(glide.active);
+
+    glide.update(cam, 1.0 / 60.0, /*reduce_motion=*/true);
+    CHECK(!glide.active);
+    CHECK_NEAR((cam.target - new_focus).length(), 0, 1e-12);
+}
+
+// SL Alt-click: during the focus glide the eye stays where it was; only the look-at point travels.
+TEST(camera_focus_glide_keeps_the_eye_fixed) {
+    Camera cam;
+    cam.target = {0, 0, 1.0};
+    cam.yaw = 0.2, cam.pitch = 0.1, cam.distance = 3.0;
+    const Vec3 eye = cam.eye();
+    CameraGlide glide;
+    glide.focus_on(cam, {1.0, 2.0, 1.5});
+    for (int i = 0; i < 120 && glide.active; ++i) {
+        glide.update(cam, 1.0 / 60.0);
+        CHECK((cam.eye() - eye).length() < 1e-6);
+    }
+    CHECK(!glide.active);
+    CHECK((cam.target - Vec3{1.0, 2.0, 1.5}).length() < 1e-6);
+}
+
+// An Alt-click while a view turn (or an orbit) is still gliding keeps the eye where it is on screen, not where that
+// glide was heading.
+TEST(camera_focus_mid_glide_keeps_the_shown_eye) {
+    for (int orbit = 0; orbit < 2; ++orbit) {
+        Camera cam;
+        cam.target = {0, 0, 1.0};
+        cam.yaw = 0, cam.pitch = 0.1, cam.distance = 3.0;
+        CameraGlide glide;
+        if (orbit) {
+            glide.focus_on(cam, {0.3, 0.2, 1.1});
+            glide.update(cam, 1.0 / 60.0);
+            glide.apply_input(cam, [](Camera& c) { c.yaw += 0.8; });
+        } else {
+            glide.look_from(cam, {0, 1, 0});  // a quarter turn
+        }
+        for (int i = 0; i < 3; ++i) glide.update(cam, 1.0 / 60.0);
+        const Vec3 eye = cam.eye();
+        glide.focus_on(cam, {0.2, 0, 1.2});
+        for (int i = 0; i < 120 && glide.active; ++i) {
+            glide.update(cam, 1.0 / 60.0);
+            CHECK((cam.eye() - eye).length() < 1e-6);
+        }
+        CHECK(!glide.active);
+    }
+}
+
+// The camera commands (Frame Selected, Zoom, Camera Views) go through apply_input: given mid-glide they land.
+TEST(camera_input_mid_glide_is_kept) {
+    Camera cam;
+    cam.target = {0, 0, 1.0};
+    cam.distance = 3.0;
+    CameraGlide glide;
+    glide.look_from(cam, {0, 1, 0});
+    glide.update(cam, 1.0 / 60.0);
+    glide.apply_input(cam, [](Camera& c) { c.zoom(0.85), c.target = {0.5, 0, 1.2}; });
+    for (int i = 0; i < 600 && glide.active; ++i) glide.update(cam, 1.0 / 60.0);
+    CHECK_NEAR(cam.distance, 3.0 * 0.85, 1e-3);
+    CHECK((cam.target - Vec3{0.5, 0, 1.2}).length() < 1e-3);
+}

@@ -244,6 +244,23 @@ follow-through; blocking, then spline) are good: the reader builds each of those
 - Keep the craft: the **Why** notes, the menu and tool names, the keyboard shortcuts as the other way to do it, and
   the **Check your result** and **Troubleshooting** sections, as things to look at.
 
+## UI text
+
+These are for the app's own labels (`ui/`), which the wiki then quotes exactly.
+
+- **Title Case** for menus and menu items, buttons, window and tab titles, and collapsible group headers:
+  **Export Listing Media**, **Add Partner**, **Shape Strengths**. Small words stay lower case: a, an, and, as,
+  at, by, for, from, in, of, on, or, the, to, with.
+- **Sentence case** for checkboxes, field labels, static subheadings, hints and status messages:
+  **Allow other devices**, **Bake shape**, **Placement from the sit target**. Names keep their capitals
+  (**Second Life**, **Your avatar**, the **Animations** library).
+- "..." ends a menu item or button that opens a window or asks something before it acts.
+- Counts never say "(s)": the code writes them with `count_noun()` ("1 key", "3 keys").
+- One short line at most under a window's title; the rest of what it does is its help page (the **?** in its
+  title bar or tab). An empty list says so in one centred dim sentence, with the button that fills it.
+- A disabled button has a tooltip saying why. A missing required input is in the warning colour, not dim.
+- Labels sit in a column on the left of their fields (`labelled_row()`), never after them.
+
 ## App and viewer
 
 VATs runs as the standalone app and inside an SL viewer (the VATs Editor). Where they differ,

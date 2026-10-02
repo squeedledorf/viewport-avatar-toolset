@@ -1,8 +1,12 @@
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 #include "check.h"
 #include "fixtures.h"
+#include "view_math.h"
+#include "vats/dae.h"
+#include "../tools/mech_rig.h"
 
 using namespace vats;
 
@@ -225,4 +229,170 @@ TEST(skeleton_pose_rotates_children) {
     Vec3 arm = g[s.find("mWristLeft")].pos - g[shoulder].pos;
     CHECK_NEAR(arm.x, -0.453, 1e-3);
     CHECK_NEAR(arm.y, 0, 1e-3);
+}
+
+// 08 FP-1: stick bones join each joint to its child joints where the body has them, not where SL's lengths say.
+TEST(stick_segments_follow_moved_joints) {
+    const Skeleton& s = skel();
+    Shape shape;
+    shape.scale.assign(s.size(), Vec3{1, 1, 1});
+    shape.offset.assign(s.size(), Vec3{});
+    const int knee = s.find("mKneeLeft"), ankle = s.find("mAnkleLeft"), tail = s.find("mTail1"), skull = s.find("mSkull");
+    shape.offset[knee] = {0.30, 0.05, 0.10};   // a creature's leg: the joints far from SL's
+    shape.offset[ankle] = {-0.25, 0, -0.30};
+    shape.offset[tail] = {-0.40, 0, 0.20};
+    Pose pose(s.size());
+    pose.rot[s.find("mHipLeft")] = Quat::axis_angle({0, 1, 0}, 0.6);
+    const std::vector<Xform> g = s.global_pose(pose, &shape);
+    const std::vector<StickSegment> segs = stick_segments(s, g, &shape);
+    int joined = 0, stubs = 0;
+    std::vector<int> children(s.size(), 0), lines(s.size(), 0);
+    for (int i = 0; i < s.joint_count(); ++i)
+        for (int c : s[i].children) children[i] += c < s.joint_count();
+    for (const StickSegment& k : segs) {
+        CHECK(k.node >= 0 && k.node < s.joint_count());
+        CHECK((k.a - g[k.node].pos).length() < 1e-12);  // every stick starts on its joint
+        ++lines[k.node];
+        if (k.stub) {
+            ++stubs;
+            CHECK(children[k.node] == 0);
+            CHECK((k.b - k.a).length() <= 0.05 + 1e-9 && (k.b - k.a).length() > 1e-5);
+            continue;
+        }
+        bool ends_on_child = false;
+        for (int c : s[k.node].children) ends_on_child = ends_on_child || (c < s.joint_count() && (k.b - g[c].pos).length() < 1e-12);
+        CHECK(ends_on_child);
+        ++joined;
+    }
+    for (int i = 0; i < s.joint_count(); ++i) CHECK(lines[i] == (children[i] ? children[i] : lines[i] ? 1 : 0));
+    CHECK(joined == s.joint_count() - 1);  // every joint but the pelvis hangs off its parent by one stick
+    CHECK(stubs > 0 && lines[skull] == 1);
+    // The moved knee: SL's own thigh bone end ends well short of it, the stick ends on it.
+    const int hip = s.find("mHipLeft");
+    CHECK((bone_tail(s, g, &shape, hip) - g[knee].pos).length() > 0.2);
+    // A fitted rig tail is the stub, whole.
+    shape.tails.assign(s.size(), Vec3{});
+    shape.axes.assign(s.size(), Quat{});
+    shape.tails[skull] = {0, 0, 0.31};
+    for (const StickSegment& k : stick_segments(s, g, &shape))
+        if (k.node == skull) CHECK_NEAR((k.b - k.a).length(), 0.31, 1e-9);
+    // Hidden joints take their sticks with them, and the joint above a hidden one ends in a stub.
+    std::vector<bool> shown(s.size(), true);
+    shown[ankle] = false;
+    for (const StickSegment& k : stick_segments(s, g, &shape, shown)) {
+        CHECK(k.node != ankle);
+        if (k.node == knee) CHECK(k.stub);
+    }
+}
+
+namespace {
+
+struct Pt { double x, y; };
+
+// The app's picking (App::pick_node) with every node shown.
+int test_pick_stick_bone(const Skeleton& skel, const std::vector<Xform>& globals, const Shape* shape,
+                         const Projector& pr, Pt m, std::vector<int>* ranked = nullptr) {
+    std::vector<int> hits = pick_sticks(
+        skel, globals, shape, std::vector<bool>(skel.size(), true), true,
+        [&](const Vec3& p, double& x, double& y) { return pr.to_screen(p, x, y); }, m.x, m.y);
+    if (ranked) *ranked = hits;
+    return hits.empty() ? -1 : hits.front();
+}
+
+}  // namespace
+
+TEST(stick_bone_picking_sl_avatar_and_mech) {
+    const Skeleton& s = skel();
+    Camera cam;
+    cam.target = {0, 0, 1.0};
+    cam.distance = 2.5;
+    cam.yaw = 0.0;
+    cam.pitch = 0.0;
+    Projector pr;
+    pr.w = 1600;
+    pr.h = 1000;
+    pr.x0 = 0;
+    pr.y0 = 0;
+    pr.view_proj = cam.projection(1600.0 / 1000.0) * cam.view();
+
+    // 1. SL Avatar picking
+    Pose rest(s.size());
+    const std::vector<Xform> g = s.global_pose(rest);
+    const int knee = s.find("mKneeLeft"), hip = s.find("mHipLeft");
+    double kx, ky, hx, hy;
+    CHECK(pr.to_screen(g[knee].pos, kx, ky));
+    CHECK(pr.to_screen(g[hip].pos, hx, hy));
+
+    // A click on the knee joint dot picks mKneeLeft
+    std::vector<int> ranked;
+    int picked = test_pick_stick_bone(s, g, nullptr, pr, Pt{kx, ky}, &ranked);
+    CHECK_EQ(picked, knee);
+
+    // A click halfway along the thigh stick (from hip to knee) picks mHipLeft (the owner of the segment)
+    Pt mid_thigh{(hx + kx) * 0.5, (hy + ky) * 0.5};
+    picked = test_pick_stick_bone(s, g, nullptr, pr, mid_thigh, &ranked);
+    CHECK_EQ(picked, hip);
+
+    // Stacked Bento spine bones: mPelvis, mTorso, mSpine1..4 at rest
+    const int pelvis = s.find("mPelvis");
+    double px, py;
+    CHECK(pr.to_screen(g[pelvis].pos, px, py));
+    picked = test_pick_stick_bone(s, g, nullptr, pr, Pt{px, py}, &ranked);
+    CHECK_EQ(picked, pelvis);
+    // Stacked bones present in ranked list
+    CHECK(ranked.size() >= 2);
+    // VP-23: clicking the spot again walks the whole stack, one bone a click, and comes back round.
+    std::vector<int> walked{picked};
+    for (size_t k = 1; k < ranked.size(); ++k) walked.push_back(next_stacked(ranked, walked.back(), picked));
+    CHECK(std::set<int>(walked.begin(), walked.end()).size() == ranked.size());
+    CHECK_EQ(next_stacked(ranked, walked.back(), picked), pelvis);
+    CHECK_EQ(next_stacked(ranked, s.find("mHead"), picked), picked);  // the current bone isn't under the pointer
+
+    // 2. Mech picking
+    DaeModel m;
+    std::string err;
+    DaeReport r;
+    CHECK(load_dae(mech::dae(s, mech::build(s)), "", s, m, r, err));
+    Shape mech_sh;
+    shape_from_binds(s, {&m}, nullptr, mech_sh);
+    rig_axes_from_parts(s, {&m}, mech_sh);
+    const std::vector<Xform> mg = s.global_pose(rest, &mech_sh);
+    const int hind1 = s.find("mHindLimb1Left"), hind2 = s.find("mHindLimb2Left");
+    double h1x, h1y, h2x, h2y;
+    CHECK(pr.to_screen(mg[hind1].pos, h1x, h1y));
+    CHECK(pr.to_screen(mg[hind2].pos, h2x, h2y));
+    // Click on hind2 joint dot picks hind2
+    picked = test_pick_stick_bone(s, mg, &mech_sh, pr, Pt{h2x, h2y}, &ranked);
+    CHECK_EQ(picked, hind2);
+    // Click along stick segment of hind1 picks hind1
+    Pt mid_hind{(h1x + h2x) * 0.5, (h1y + h2y) * 0.5};
+    picked = test_pick_stick_bone(s, mg, &mech_sh, pr, mid_hind, &ranked);
+    CHECK_EQ(picked, hind1);
+}
+
+// A finger's dot wins inside its drawn size over its parent's stick, which runs right into it (VP-21): seen from above
+// at hand distance, a click 3 px off each dot's centre toward its parent takes that dot's bone.
+TEST(stick_picking_short_bone_dot_beats_parent_stick) {
+    const Skeleton& s = skel();
+    const std::vector<Xform> g = s.global_pose(Pose(s.size()));
+    Camera cam;
+    cam.target = g[s.find("mWristRight")].pos;
+    cam.distance = 1.2, cam.yaw = 0, cam.pitch = 1.4;
+    Projector pr;
+    pr.w = 608, pr.h = 430;
+    pr.view_proj = cam.projection(608.0 / 430) * cam.view();
+    int tried = 0;
+    for (int i = 0; i < s.joint_count(); ++i) {
+        const std::string& n = s[i].name;
+        const int parent = s[i].parent;
+        if (n.find("Hand") == std::string::npos || n.find("Right") == std::string::npos || parent < 0) continue;
+        double cx, cy, px, py;
+        CHECK(pr.to_screen(g[i].pos, cx, cy) && pr.to_screen(g[parent].pos, px, py));
+        const double len = std::hypot(px - cx, py - cy);
+        if (len < 1e-6) continue;
+        const int got = test_pick_stick_bone(s, g, nullptr, pr, Pt{cx + (px - cx) / len * 3, cy + (py - cy) / len * 3});
+        if (got != i) check::fail(__FILE__, __LINE__, n + "'s dot picked " + (got < 0 ? "nothing" : s[got].name));
+        ++tried;
+    }
+    CHECK(tried >= 15);
 }

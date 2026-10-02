@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include "from_chars_compat.h"
 #include <complex>
 #include <set>
 
@@ -22,12 +23,13 @@ struct Delta {
     bool has_rot = false, has_pos = false;
 };
 
-std::map<std::string, Delta> deltas(const FaceTable& table, const std::map<std::string, double>& w, bool positions) {
+std::map<std::string, Delta> deltas(const FaceTable& table, const std::map<std::string, double>& w, bool positions,
+                                    double scale) {
     std::map<std::string, Delta> out;
     if (w.empty()) return out;
     Clip c;
     static const std::map<std::string, double> none;
-    key_face_weights(c, table, w, positions, 0, &none);  // keys only the bones the weights move, by their move
+    key_face_weights(c, table, w, positions, 0, &none, scale);  // keys only the bones the weights move, by their move
     for (auto& [bone, track] : c.curves) {
         Delta& d = out[bone];
         d.has_rot = c.has_channels(bone, kRotChannels);
@@ -41,7 +43,7 @@ std::map<std::string, Delta> deltas(const FaceTable& table, const std::map<std::
 // Adds (sign 1) or takes back (sign -1) ls's moves on its frames.
 void add_moves(Clip& clip, const FaceTable& table, const LipShapes& shapes, const LipSync& ls, double sign) {
     for (int f = std::max(ls.from, 0); f <= std::min(ls.to, clip.end_frame); ++f)  // a file's or a shortened clip's
-        for (auto& [bone, d] : deltas(table, lip_weights(ls, shapes, f), ls.positions)) {
+        for (auto& [bone, d] : deltas(table, lip_weights(ls, shapes, f), ls.positions, ls.scale)) {
             if (d.has_rot) key_euler(clip, bone, f, curve_euler(clip, bone, f) + d.rot * sign);
             if (d.has_pos) key_offset(clip, bone, f, curve_offset(clip, bone, f) + d.pos * sign);
         }
@@ -218,7 +220,7 @@ bool parse_rhubarb(std::string_view text, std::vector<RhubarbCue>& out, std::str
             if (line.find_first_not_of(" \t\xEF\xBB\xBF") == std::string_view::npos) continue;
             line.remove_prefix(line.find_first_not_of(" \t\xEF\xBB\xBF"));
             double t = 0;
-            auto r = std::from_chars(line.data(), line.data() + line.size(), t);
+            auto r = from_chars(line.data(), line.data() + line.size(), t);
             std::string_view rest(r.ptr, size_t(line.data() + line.size() - r.ptr));
             const size_t s = rest.find_first_not_of(" \t");
             const std::string shape(s == std::string_view::npos ? std::string_view{} : rest.substr(s));
@@ -283,7 +285,7 @@ void apply_lip_sync(Clip& clip, const FaceTable& table, const LipShapes& shapes,
     // frames around the range keep their motion.
     std::set<std::string> rot, pos;
     for (auto& [name, s] : shapes.shapes)
-        for (auto& [bone, d] : deltas(table, s, ls.positions)) {
+        for (auto& [bone, d] : deltas(table, s, ls.positions, ls.scale)) {
             if (d.has_rot) rot.insert(bone);
             if (d.has_pos) pos.insert(bone);
         }

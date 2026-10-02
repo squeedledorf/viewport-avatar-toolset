@@ -250,9 +250,10 @@ Clip keyed(const LibraryItem& it) {
 }  // namespace
 
 // On both default bodies (female: the skeleton's own proportions, male: its shape), every body pose passes the
-// Animation Check's joint-limit rule, and the fitting stances its self-contact and ground rules too (the other poses
-// touch on purpose: crossed arms, hands on the thighs). The fitting stances are also symmetric joint for joint
-// (fingers included), keep the spine and head straight, and key the whole body.
+// Animation Check's joint-limit rule, and its self-contact rule unless the pose touches on purpose (crossed arms, a
+// hand at the chin, hands on the thighs): a user test's first finding on a stand was the stock Contrapposto's own
+// knees and elbow. The fitting stances pass the ground rule too, are symmetric joint for joint (fingers included),
+// keep the spine and head straight, and key the whole body.
 TEST(pose_presets_body_checks) {
     const Skeleton& s = skel();
     Rig rig(s);
@@ -260,11 +261,12 @@ TEST(pose_presets_body_checks) {
     for (auto& it : builtin_poses(s)) {
         if (it.kind != "pose") continue;
         const bool stance = it.category == "Fitting stances";
+        const bool touches = it.id == "builtin:body-arms-crossed" || it.id == "builtin:body-thinking" || it.id == "builtin:body-sit";
         for (const Shape* shape : {static_cast<const Shape*>(nullptr), &s.male_shape()}) {
             AnimExportOptions opt;
             opt.shape = shape;
             for (const LintFinding& f : lint_clip(s, keyed(it), opt, {}, shape))
-                if (f.rule == "joint_limits" || (stance && (f.rule == "self_contact" || f.rule == "ground")))
+                if (f.rule == "joint_limits" || (!touches && f.rule == "self_contact") || (stance && f.rule == "ground"))
                     check::fail(__FILE__, __LINE__, it.id + (shape ? " male: " : " female: ") + f.message);
         }
         if (!stance) continue;

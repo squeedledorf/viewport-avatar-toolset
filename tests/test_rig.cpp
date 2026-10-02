@@ -9,6 +9,7 @@
 #include "vats/anim_convert.h"
 #include "vats/bvh.h"
 #include "vats/edit.h"
+#include "vats/ragdoll.h"
 #include "vats/rig.h"
 
 using namespace vats;
@@ -170,6 +171,30 @@ TEST(ik_switch_round_trip_keeps_pose) {
             CHECK(angle_between(after.pose.rot[i], before.pose.rot[i]) < 1e-4);
         }
     }
+}
+
+// User test: legs switched to IK at rest, the feet stepped out to a walk's contact pose. The pole taken from the
+// straight leg's small inward kink turned each knee 64 degrees in, the knees crossed, and the Check (rightly)
+// called the hips past what a body can do.
+TEST(ik_straight_leg_switch_bends_knee_forward) {
+    Rig rig(skel());
+    Clip c;
+    const int legs[2] = {rig.find_limb("LegLeft"), rig.find_limb("LegRight")};
+    for (int limb : legs) switch_to_ik(c, rig, 0, limb, nullptr);
+    const Evaluation switched = evaluate(rig, c, 0, nullptr);
+    for (int b : {node("mHipLeft"), node("mKneeLeft"), node("mAnkleLeft")})  // and the switch doesn't jump
+        CHECK(angle_between(switched.pose.rot[b], Quat{}) < 1e-4);
+    key_offset(c, "mPelvis", 0, {0, 0, -0.05});
+    for (int i = 0; i < 2; ++i) {
+        Xform t = evaluate(rig, c, 0, nullptr).limbs[legs[i]].target;
+        t.pos.x += i == 0 ? 0.31 : -0.34;
+        key_limb_target(c, rig, 0, legs[i], t, nullptr);
+    }
+    const Evaluation e = evaluate(rig, c, 0, nullptr);
+    for (const LimitExcess& x : ragdoll_limit_excesses(skel(), e.pose, 5))
+        check::fail(__FILE__, __LINE__, skel()[x.node].name + " past its limit by " + std::to_string(x.deg));
+    CHECK(e.globals[node("mKneeLeft")].pos.y > 0.06);  // each knee on its own side
+    CHECK(e.globals[node("mKneeRight")].pos.y < -0.06);
 }
 
 TEST(ik_blend_keys_are_stepped) {

@@ -7,12 +7,15 @@
 #include <cstdio>
 #include <map>
 #include <optional>
+#include <set>
 
 #include "vats/curve_ops.h"
+#include "vats/deformer.h"
 #include "vats/dynamics.h"
 #include "vats/edit.h"
 #include "vats/footlock.h"
 #include "vats/loop_tools.h"
+#include "vats/position_reset.h"
 #include "vats/ragdoll.h"
 #include "vats/rig.h"
 #include "vats/world_reduce.h"
@@ -27,6 +30,7 @@ constexpr double kArcMax = 90;         // degrees between kept keys before nlerp
 constexpr double kArcStep = 45;        // the fix's key spacing: any two frames inside a step are <= 90 apart
 constexpr double kSubFrame = 0.1;      // frames off a whole frame (reverse's slivers sit closer, on purpose)
 constexpr double kEaseFixed = 0.3;     // seconds the ease fix gives a zero ease
+constexpr double kSinkTol = 0.01;      // m: SL lowering or raising the wearer this far (spec 09 build 35)
 constexpr int kAoPriority = 4;         // AO walks and stands play at up to this
 
 const std::vector<LintRule> kRules = {
@@ -39,6 +43,7 @@ const std::vector<LintRule> kRules = {
     {"nlerp_arc", "Turns over 90 degrees between keys"},
     {"ao_priority", "Whole body below priority 4"},
     {"hover_pop", "Hip and leg position keys"},
+    {"body_height", "Position keys that make the avatar taller"},
     {"frozen_bones", "Bones that never move"},
     {"face_positions", "Face position keys on the default face"},
     {"eyes", "Eyes keyed"},
@@ -48,6 +53,8 @@ const std::vector<LintRule> kRules = {
     {"ground", "Feet off the ground"},
     {"self_contact", "Body parts pass through each other"},
     {"actor_contact", "Actors pass through each other"},
+    {"position_ends_moved", "Joint positions end moved"},
+    {"position_leftovers", "Joint positions inherited from other clips"},
     {"upload_size", "Upload size"},
     {"duration", "Duration"},
 };
@@ -135,6 +142,9 @@ AnimExportOptions with_clip_settings(const Clip& clip, AnimExportOptions o) {
         const Json* w = ex.find("reduce_world");
         o.reduce_world_m = w && w->is_number() && w->num > 0 ? w->num : kReduceWorldDefault;
     }
+    if (const Json* v = ex.find("end_at_rest"); v && v->is_bool()) o.end_at_rest = v->b;  // 09 0l
+    if (const Json* v = ex.find("hold_no_sink"); v && v->is_bool()) o.hold_without_sinking = v->b;
+    if (const Json* v = ex.find("reset_positions"); v && v->is_bool()) o.reset_positions = v->b;
     return o;
 }
 
@@ -168,7 +178,8 @@ int lint_goto_frame(const std::vector<int>& frames, int here) {
 
 std::vector<LintFinding> lint_clip(const Skeleton& skel, const Clip& clip, const AnimExportOptions& opt,
                                    const std::vector<std::string>& off, const Shape* mesh_body,
-                                   const std::string& ao_state, const std::vector<LintPartner>& partners) {
+                                   const std::string& ao_state, const std::vector<LintPartner>& partners,
+                                   const std::vector<const Clip*>& other_clips) {
     std::vector<LintFinding> out;
     auto on = [&](const char* rule) { return std::find(off.begin(), off.end(), rule) == off.end(); };
     auto add = [&](const char* rule, LintSeverity sev, std::vector<std::string> bones, std::vector<int> frames,
@@ -492,7 +503,8 @@ std::vector<LintFinding> lint_clip(const Skeleton& skel, const Clip& clip, const
         const bool leg = n == 0 || in_leg(skel, n);
         upper = upper || in_upper_body(name);
         if (leg && prio < kAoPriority) low_priority.push_back(name);
-        if (!j.pos.empty() && !skel[n].attachment && (name == "mSpine1" || in_leg(skel, n))) hover.push_back(name);
+        // SL's height reads the left leg's positions (sl_body_size), never mSpine1's; both legs change the leg length.
+        if (!j.pos.empty() && !skel[n].attachment && in_leg(skel, n)) hover.push_back(name);
         if (!j.pos.empty() && cat == Category::Face && !is_eye(name) && !eo.positions) face_pos.push_back(name);
         if (j.pos.empty() && !j.rot.empty() && !is_eye(name) &&
             (cat == Category::Tail || cat == Category::Wings || cat == Category::Face || cat == Category::Hands) &&
@@ -536,7 +548,8 @@ std::vector<LintFinding> lint_clip(const Skeleton& skel, const Clip& clip, const
         add("ao_priority", LintSeverity::Warning, low_priority, {},
             layered ? "The whole body is animated but the hips and legs play below priority 4; as the AO's " + ao_state +
                           " animation it plays over its walks and stands, which win them"
-                    : "The whole body is animated but the hips and legs play below priority 4; a walking or standing AO wins them",
+                    : "The whole body is animated but the hips and legs play below priority 4; a walking or standing AO wins "
+                      "them. For an AO's own stand or walk, set its AO state in Tools > Clips (AO Sets) instead",
             {"Set Priority 4", [low_priority](Clip& c) {
                  c.priority = std::max(c.priority, kAoPriority);
                  for (const std::string& b : low_priority)
@@ -547,6 +560,72 @@ std::vector<LintFinding> lint_clip(const Skeleton& skel, const Clip& clip, const
         add("hover_pop", LintSeverity::Warning, hover, {},
             "Position keys on " + list(hover) + " change the leg length; the avatar pops up or down as it starts",
             {"Remove Their Position Keys", delete_all(hover, true)});
+    // Spec 09 build 35: every SL viewer computes the avatar's height from the torso, chest, neck, head and skull
+    // positions, animated ones included, and stands it half the change lower (sl_body_size). It does so whenever an
+    // animation starts or stops (LLVOAvatar::processSingleAnimationStateChange), and a joint no motion drives keeps its
+    // last position (LLPoseBlender sets only joints with active states), so a neck-stretch deformer sinks the wearer
+    // as it ends and for good. A hip key cannot undo it: the pelvis_fix motion takes the hip back when it ends.
+    std::vector<std::string> taller, height_warned;
+    if (eo.hold_without_sinking) height_warned = {"mTorso", "mChest", "mNeck", "mHead", "mSkull"};
+    for (const AnimJoint& j : file.joints)
+        for (const char* b : {"mTorso", "mChest", "mNeck", "mHead", "mSkull"})
+            if (!j.pos.empty() && skel.find_viewer(j.name) == skel.find(b)) taller.push_back(b);
+    if (on("body_height") && !taller.empty()) {
+        // The whole height, as the viewer takes it: the left leg's keys count too (for its knee, ankle and foot the
+        // root rises half what the leg grows, so the feet sink the other half), and Hold without sinking evens it all.
+        const Shape* body = deformer_body(eo);  // the worn avatar's scales when the export uses its joints
+        const double rest = sl_body_size(skel, nullptr, body).height;
+        // The clip as the export writes it: End at rest and Hold without sinking (09 0l) change the positions.
+        const bool deformer = eo.end_at_rest || eo.hold_without_sinking;
+        const Clip dclip = deformer ? with_deformer_options(skel, clip, eo) : Clip{};
+        const int dlast = deformer ? std::max(dclip.end_frame, 1) : last;
+        std::vector<int> frames;
+        double worst = 0, end = 0;
+        for (int f = 0; f <= dlast; ++f) {
+            const Pose dp = deformer ? evaluate_curves(skel, dclip, f) : Pose{};
+            const SlBodySize b = sl_body_size(skel, deformer ? &dp : &poses[size_t(f)], body);
+            const double sink = (b.height - rest) / 2;
+            if (f == dlast) end = sink;
+            if (std::fabs(sink) <= kSinkTol) continue;
+            frames.push_back(f);
+            if (std::fabs(sink) > std::fabs(worst)) worst = sink;
+        }
+        if (!frames.empty()) {
+            height_warned = taller;
+            const double cm = std::fabs(worst) * 100;
+            const bool stays = std::fabs(end) > kSinkTol;
+            // The spine hint: a taller torso or chest can be built on the spine bones, which the height never reads.
+            const bool torso = std::find(taller.begin(), taller.end(), "mTorso") != taller.end() ||
+                               std::find(taller.begin(), taller.end(), "mChest") != taller.end();
+            const bool counter = std::any_of(taller.begin(), taller.end(), [](const std::string& b) { return b != "mSkull"; });
+            char msg[1400];
+            std::snprintf(msg, sizeof msg,
+                          "Position keys on %s make the avatar up to %.1f cm %s. Second Life's viewers take the avatar's "
+                          "height whenever an animation starts or stops, and stand it half that, %.1f cm, %s. %s %s Hover "
+                          "Height %.1f cm %s while the change is on. %s",
+                          list(taller).c_str(), 2 * cm, worst > 0 ? "taller" : "shorter", cm,
+                          worst > 0 ? "lower, into the ground" : "higher, off the ground",
+                          stays ? "It ends changed, and a joint keeps an animation's position after it ends (how a "
+                                  "deformer stays), so this lasts after it stops, until the skeleton is reset."
+                                : "It ends at rest, so this lasts only while it plays.",
+                          counter ? "Fix: Hold Without Sinking counter-keys mSkull so the height stays. Or set" : "Set",
+                          cm, worst > 0 ? "higher" : "lower",
+                          torso ? "For a longer body, move the spine bones up instead of mTorso and mChest: mSpine1 and "
+                                  "mSpine2 sit between the hip and mTorso, mSpine3 and mSpine4 between mTorso and mChest, "
+                                  "and Second Life's height never reads them, so the body grows without the wearer sinking."
+                                : "(The spine bones mSpine1 to mSpine4 and the hip's position do not count.)");
+            // The fix counters on mSkull: none when mSkull's own keys are all that change the height.
+            LintFix fix;
+            const int head = skel.find("mHead");
+            const double hs = body && head >= 0 && size_t(head) < body->scale.size() ? body->scale[size_t(head)].z : 1;
+            if (counter)
+                fix = {fmt("Hold Without Sinking (mSkull, head scale %.3g)", hs),
+                       [&skel, sh = body ? std::optional<Shape>(*body) : std::nullopt](Clip& c) {
+                           hold_without_sinking(c, skel, sh ? &*sh : nullptr);
+                       }};
+            add("body_height", LintSeverity::Warning, taller, frames, msg, std::move(fix));
+        }
+    }
     if (on("frozen_bones") && !frozen.empty())
         add("frozen_bones", LintSeverity::Warning, frozen, {},
             list(frozen) + " never move but are exported; they freeze the wearer's own tail, wings, face or hands",
@@ -558,6 +637,63 @@ std::vector<LintFinding> lint_clip(const Skeleton& skel, const Clip& clip, const
         add("face_positions", LintSeverity::Warning, face_pos, {},
             "Face bones carry position keys written from the SL Default face; they pull a mesh head towards it",
             {"Remove the Face Position Keys", delete_all(face_pos, true)});
+    // A looping animation stops wherever it is, so a position anywhere in the loop can be left behind; End at Rest
+    // would play only if it ran to its end. Otherwise only the last frame counts, and End at Rest clears it.
+    const Json* und = clip.export_settings.find("undeformer");
+    const bool undeformer = und && und->is_bool() && und->b;
+    if (on("position_ends_moved") && (clip.loop ? !undeformer : !eo.end_at_rest)) {
+        auto moved = clip.loop ? joints_moved_by_position(skel, clip) : joints_ending_moved_by_position(skel, clip);
+        if (!height_warned.empty()) {
+            const std::set<std::string> hw(height_warned.begin(), height_warned.end());
+            moved.erase(std::remove_if(moved.begin(), moved.end(), [&](const std::string& b) { return hw.count(b) > 0; }),
+                        moved.end());
+        }
+        if (!moved.empty()) {
+            const int n = static_cast<int>(moved.size());
+            if (clip.loop) {
+                const std::string msg = std::to_string(n) +
+                    (n == 1 ? " joint is moved by position in the loop, and a looping animation stops wherever it is; the "
+                              "next animation inherits it unless it keys or resets its position"
+                            : " joints are moved by position in the loop, and a looping animation stops wherever it is; the "
+                              "next animation inherits them unless it keys or resets their positions");
+                add("position_ends_moved", LintSeverity::Warning, moved, {}, msg,
+                    {"Also Export an Undeformer", [](Clip& c) {
+                         if (!c.export_settings.is_object()) c.export_settings = Json::object();
+                         c.export_settings.set("undeformer", true);
+                     }});
+            } else {
+                const std::string msg = std::to_string(n) +
+                    (n == 1 ? " joint ends moved by position; the next animation inherits it unless it keys its position"
+                            : " joints end moved by position; the next animation inherits them unless it keys their positions");
+                add("position_ends_moved", LintSeverity::Warning, moved, {clip.end_frame}, msg,
+                    {"End at Rest", [&skel](Clip& c) { end_at_rest(c, skel); }});
+            }
+        }
+    }
+    // Joints this clip turns but whose position it writes no key for (IO-11a leaves keys at rest out), which other
+    // clips move by position. Reset joint positions covers the ones it resolves to.
+    if (on("position_leftovers") && !other_clips.empty()) {
+        const auto other_pos = other_clips_position_joints(skel, other_clips);
+        const std::set<std::string> other_pos_set(other_pos.begin(), other_pos.end());
+        const auto reset = resolve_reset_position_joints(skel, clip, other_clips, clip.export_settings);
+        const std::set<std::string> reset_set(reset.begin(), reset.end());
+        const double tol = position_tolerance(clip.export_settings);
+        std::vector<std::string> leftovers;
+        for (const std::string& name : clip_rotated_joints(skel, clip))
+            if (other_pos_set.count(name) && !reset_set.count(name) && !writes_position(clip, name, tol))
+                leftovers.push_back(name);
+        if (!leftovers.empty()) {
+            const std::string msg = (leftovers.size() == 1)
+                ? list(leftovers) + " keys rotation but not position; other clips move it by position, so it will inherit leftovers"
+                : list(leftovers) + " key rotation but not position; other clips move them by position, so they will inherit leftovers";
+            add("position_leftovers", LintSeverity::Warning, leftovers, {}, msg,
+                {"Reset Joint Positions", [](Clip& c) {
+                     if (!c.export_settings.is_object()) c.export_settings = Json::object();
+                     c.export_settings.set("reset_positions", true);
+                     c.export_settings.set("reset_positions_mode", "rotated");  // covers every joint it turns
+                 }});
+        }
+    }
     return out;
 }
 

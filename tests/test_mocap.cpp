@@ -8,7 +8,9 @@
 #include "fixtures.h"
 #include "vats/anim_convert.h"
 #include "vats/anim_file.h"
+#include "vats/dae.h"
 #include "vats/edit.h"
+#include "vats/face_anim.h"
 #include "vats/mocap.h"
 #include "vats/rig.h"
 
@@ -1167,4 +1169,235 @@ TEST(mocap_filter_replaces_box_and_reports_shake) {
     bool reported = false;
     for (const std::string& line : report) reported |= line.rfind("Butterworth filter: shake ", 0) == 0;
     CHECK(reported);
+}
+
+TEST(face_table_round_trip) {
+    const FaceTable& original = face_table();
+    std::string json_str = write_face_table(original);
+    FaceTable roundtrip;
+    std::string err;
+    CHECK(parse_face_table(json_str, roundtrip, err));
+    CHECK(err.empty());
+    CHECK(original == roundtrip);
+    CHECK_EQ(original.shapes.size(), roundtrip.shapes.size());
+    CHECK_EQ(original.bones().size(), roundtrip.bones().size());
+}
+
+TEST(face_offsets_scale_on_mesh_head) {
+    const Skeleton& s = skel();
+    const FaceTable& table = face_table();
+    // A mesh head whose eyes and mouth corners are 1.5x as far apart as SL's
+    Shape mesh_head;
+    mesh_head.scale.assign(s.size(), Vec3{1, 1, 1});
+    mesh_head.offset.assign(s.size(), Vec3{});
+    const auto rest_globals = s.global_pose(Pose(s.size()));
+    auto widen = [&](const char* a, const char* b, double k) {
+        const int i = s.find(a), j = s.find(b);
+        const double d0 = (rest_globals[i].pos - rest_globals[j].pos).length();
+        mesh_head.offset[i] = Vec3{0, d0 * (k - 1) / 2, 0};
+        mesh_head.offset[j] = Vec3{0, -d0 * (k - 1) / 2, 0};
+    };
+    widen("mEyeLeft", "mEyeRight", 1.5);
+    widen("mFaceEyeAltLeft", "mFaceEyeAltRight", 1.5);
+    widen("mFaceLipCornerRight", "mFaceLipCornerLeft", 1.5);  // SL's corners are swapped by name
+    const int lc = s.find("mFaceLipCornerRight");             // avatar's left (+Y)
+    const double expected_scale = 1.5;
+    const double measured_scale = face_scale(s, &mesh_head);
+    CHECK_NEAR(measured_scale, expected_scale, 1e-3);
+
+    // A mouth 1.5x as wide on SL's eyes, and the same with the eyes 0.2 mm wider: about the same scale. (The first
+    // measure that differed at all used to win: 1.5, then 1.003.)
+    Shape mouth;
+    mouth.scale.assign(s.size(), Vec3{1, 1, 1});
+    mouth.offset.assign(s.size(), Vec3{});
+    for (const char* n : {"mFaceLipCornerRight", "mFaceLipCornerLeft"}) mouth.offset[s.find(n)] = mesh_head.offset[s.find(n)];
+    Shape eyes_nudged = mouth;
+    eyes_nudged.offset[s.find("mEyeLeft")].y = 0.0001, eyes_nudged.offset[s.find("mEyeRight")].y = -0.0001;
+    CHECK(std::fabs(face_scale(s, &mouth) - face_scale(s, &eyes_nudged)) < 0.01);
+
+    // Key a smile on this mesh head
+    VmcState st;
+    st.blend["mouthSmileLeft"] = 1.0f;
+    FaceSettings fs;
+    fs.positions = true;
+    fs.head = false;
+    fs.scale = measured_scale;
+    Clip clip;
+    key_face(clip, table, st, fs, 0);
+
+    // The keyed offset in clip must be table_offset * measured_scale
+    Vec3 raw_offset;
+    for (auto& m : table.shapes.at("mouthSmileLeft")) {
+        if (m.bone == "mFaceLipCornerRight" && m.has_pos) raw_offset = m.pos;
+    }
+    const Vec3 keyed_offset = curve_offset(clip, "mFaceLipCornerRight", 0);
+    CHECK_NEAR(keyed_offset.y, raw_offset.y * measured_scale, 1e-6);
+    CHECK_NEAR(keyed_offset.z, raw_offset.z * measured_scale, 1e-6);
+
+    // When exported to .anim with opt.positions = &mesh_head:
+    // in Second Life, positions replace the joint rest. The exported position must equal
+    // (mesh head joint position) + (scaled offset).
+    AnimExportOptions opt;
+    opt.positions = &mesh_head;
+    opt.worn_overrides = {"mFaceLipCornerRight", "mFaceLipCornerLeft"};
+    AnimExportResult r = export_anim(s, clip, opt);
+    CHECK(r.errors.empty());
+    AnimFile af;
+    std::string err;
+    CHECK(parse_anim(write_anim(r.file), af, err));
+    const AnimJoint* j = nullptr;
+    for (auto& joint : af.joints) {
+        if (joint.name == "mFaceLipCornerRight") j = &joint;
+    }
+    CHECK(j != nullptr && !j->pos.empty());
+    const Vec3 exported_pos = decode_position(j->pos[0]);
+    const Vec3 mesh_head_joint = s[lc].pos + mesh_head.offset[lc];
+    const Vec3 expected_pos = mesh_head_joint + keyed_offset;
+    CHECK_NEAR(exported_pos.x, expected_pos.x, 1e-3);
+    CHECK_NEAR(exported_pos.y, expected_pos.y, 1e-3);
+    CHECK_NEAR(exported_pos.z, expected_pos.z, 1e-3);
+}
+
+namespace {
+
+// A constructed head (CC0): the SL face k times its size (every face joint and the eyes spread k times as far from
+// their parents), and one vertex per (joint, point) rigid on that joint.
+struct SkinnedHead {
+    Shape shape;
+    DaeModel model;
+};
+
+Shape face_sized(double k) {
+    const Skeleton& s = skel();
+    Shape h;
+    h.scale.assign(s.size(), Vec3{1, 1, 1});
+    h.offset.assign(s.size(), Vec3{});
+    for (int i = 0; i < s.size(); ++i)
+        if (s[i].name.rfind("mFace", 0) == 0 || s[i].name == "mEyeLeft" || s[i].name == "mEyeRight")
+            h.offset[i] = s[i].pos * (k - 1);
+    return h;
+}
+
+SkinnedHead skinned_head(const Shape& shape, const std::vector<std::pair<int, Vec3>>& verts) {
+    const Skeleton& s = skel();
+    SkinnedHead h{shape, {}};
+    DaeModel& m = h.model;
+    m.rigged = true;
+    m.binds = s.global_pose(Pose(s.size()), &h.shape);
+    m.binds.resize(dae_index_count(s));  // mRoot and the volumes: identity, nothing is weighted to them
+    m.bound.assign(dae_index_count(s), true);
+    for (auto& [j, p] : verts) {
+        m.positions.insert(m.positions.end(), {float(p.x), float(p.y), float(p.z)});
+        m.normals.insert(m.normals.end(), {0.f, 0.f, 1.f});
+        m.joints.insert(m.joints.end(), {j, dae_root(s), dae_root(s), dae_root(s)});
+        m.weights.insert(m.weights.end(), {1.f, 0.f, 0.f, 0.f});
+    }
+    return h;
+}
+
+// Where each vertex goes when the shapes are keyed at these weights, as the face shows them: the table's keys
+// posed on the head's shape and skinned.
+std::vector<Vec3> skin_face(const SkinnedHead& h, const std::map<std::string, float>& weights, bool positions,
+                            double scale) {
+    const Skeleton& s = skel();
+    VmcState st;
+    st.blend = weights;
+    FaceSettings fs;
+    fs.positions = positions, fs.head = false, fs.scale = scale;
+    Clip c;
+    key_face(c, face_table(), st, fs, 0);
+    Pose p(s.size());
+    for (const std::string& b : face_table().bones())
+        if (const int j = s.find(b); j >= 0) {
+            p.rot[j] = euler_to_quat(curve_euler(c, b, 0));
+            if (positions) p.offset[j] = curve_offset(c, b, 0);
+        }
+    std::vector<float> pos, nrm;
+    skin_prop(h.model, s, s.global_pose(p, &h.shape), &h.shape, pos, nrm);
+    std::vector<Vec3> out;
+    for (size_t v = 0; v + 2 < pos.size(); v += 3) out.push_back({pos[v], pos[v + 1], pos[v + 2]});
+    return out;
+}
+
+}  // namespace
+
+TEST(face_moves_scale_with_the_head_they_play_on) {
+    // The same face 1.3 times SL's size, its skin 1.3 times as far from each joint: every shape at full weight must
+    // move that skin 1.3 times as far as on SL's face, and never more than 5 cm on it (the open jaw's lips go
+    // farthest). This holds only when face_scale measures the head and the keys use it.
+    const Skeleton& s = skel();
+    auto head = [&](double k) {
+        const Shape shape = face_sized(k);
+        const std::vector<Xform> g = s.global_pose(Pose(s.size()), &shape);
+        std::vector<std::pair<int, Vec3>> verts;
+        for (const std::string& b : face_table().bones())
+            if (const int j = s.find(b); j >= 0)
+                for (const Vec3& d : {Vec3{0.02, 0, 0}, Vec3{0.015, 0.01, -0.005}}) verts.push_back({j, g[j].pos + d * k});
+        return skinned_head(shape, verts);
+    };
+    const SkinnedHead sl = head(1), big = head(1.3);
+    const double k = face_scale(s, &big.shape);
+    CHECK_NEAR(k, 1.3, 1e-6);
+    CHECK_NEAR(face_scale(s, &sl.shape), 1.0, 1e-9);
+    const std::vector<Vec3> sl0 = skin_face(sl, {}, true, 1), big0 = skin_face(big, {}, true, k);
+    for (auto& [name, motions] : face_table().shapes) {
+        const std::vector<Vec3> a = skin_face(sl, {{name, 1.f}}, true, 1), b = skin_face(big, {{name, 1.f}}, true, k);
+        for (size_t v = 0; v < a.size(); ++v) {
+            const Vec3 da = a[v] - sl0[v], db = b[v] - big0[v];
+            CHECK((db - da * 1.3).length() < 1e-5);
+            CHECK(db.length() < 0.05 * 1.3);
+        }
+    }
+}
+
+TEST(face_shapes_move_the_skin_the_right_way_wherever_it_is_weighted) {
+    // A mesh head may weight a joint's skin far from the joint: the OCOL devkit's mFaceLipCornerRight skin sits on
+    // the other side of the mouth, 5 cm from the joint. Turning such a joint swings its skin about a far pivot, so
+    // a smile's corner roll pulled that skin down. Each check skins a vertex at the joint, one in front of it, and
+    // one mirrored across the mouth and in front, as OCOL has it.
+    const Skeleton& s = skel();
+    const Shape shape = face_sized(1);
+    const std::vector<Xform> g = s.global_pose(Pose(s.size()), &shape);
+    auto skin_of = [&](const char* bone) {
+        const int j = s.find(bone);
+        const Vec3 at = g[j].pos;
+        return std::vector<std::pair<int, Vec3>>{
+            {j, at}, {j, at + Vec3{0.025, 0, 0.005}}, {j, Vec3{at.x + 0.03, -at.y, at.z + 0.004}}};
+    };
+    // How far each vertex rises, in metres, for one shape.
+    auto rise = [&](const char* bone, const char* shape_name, bool positions) {
+        const SkinnedHead h = skinned_head(shape, skin_of(bone));
+        const std::vector<Vec3> a = skin_face(h, {}, positions, 1), b = skin_face(h, {{shape_name, 1.f}}, positions, 1);
+        std::vector<double> dz;
+        for (size_t v = 0; v < a.size(); ++v) dz.push_back(b[v].z - a[v].z);
+        return dz;
+    };
+    // SL's corners are swapped by name: mouthSmileLeft moves mFaceLipCornerRight, on the avatar's left.
+    for (bool positions : {false, true}) {
+        for (auto [shape_name, bone] : {std::pair{"mouthSmileLeft", "mFaceLipCornerRight"},
+                                        std::pair{"mouthSmileRight", "mFaceLipCornerLeft"}})
+            for (double dz : rise(bone, shape_name, positions)) CHECK(positions ? dz > 0.002 : dz > -1e-6);
+        for (auto [shape_name, bone] : {std::pair{"mouthFrownLeft", "mFaceLipCornerRight"},
+                                        std::pair{"mouthFrownRight", "mFaceLipCornerLeft"}})
+            for (double dz : rise(bone, shape_name, positions)) CHECK(positions ? dz < -0.002 : dz < 1e-6);
+    }
+    // Brows turn (pitch) as well as move, so they rise and fall with Move face bones off too. Their skin is in front
+    // of the joint on any head; the vertex at the joint itself only moves with positions.
+    for (bool positions : {false, true}) {
+        auto check = [&](const char* bone, const char* shape_name, double sign) {
+            const std::vector<double> dz = rise(bone, shape_name, positions);
+            CHECK(sign * dz[1] > 0.001);
+            CHECK(sign * dz[0] > (positions ? 0.001 : -1e-6));
+        };
+        check("mFaceEyebrowInnerLeft", "browInnerUp", 1);
+        check("mFaceEyebrowInnerRight", "browInnerUp", 1);
+        check("mFaceEyebrowOuterLeft", "browOuterUpLeft", 1);
+        check("mFaceEyebrowOuterRight", "browOuterUpRight", 1);
+        check("mFaceEyebrowInnerLeft", "browDownLeft", -1);
+        check("mFaceEyebrowInnerRight", "browDownRight", -1);
+    }
+    // A pucker pushes the lips forward rather than curling them.
+    const SkinnedHead lips = skinned_head(shape, skin_of("mFaceLipUpperCenter"));
+    const std::vector<Vec3> a = skin_face(lips, {}, true, 1), b = skin_face(lips, {{"mouthPucker", 1.f}}, true, 1);
+    for (size_t v = 0; v < a.size(); ++v) CHECK(b[v].x - a[v].x > 0.002);
 }

@@ -1,25 +1,61 @@
 {
-  "defaults": {"theme": "Dusk", "size": "1200x1000"},
+  "defaults": {
+    "theme": "Dusk",
+    "size": "1200x1000"
+  },
   "shots": [
     {
       "out": "dope-sheet/dope-sheet-panel.png",
-      "args": ["examples/loop-walk.vat", "--frame", "10", "--select-all", "--window", "dope-sheet"],
+      "args": [
+        "examples/loop-walk.vat",
+        "--frame",
+        "10",
+        "--select-all",
+        "--window",
+        "dope-sheet"
+      ],
       "crop": "Dope Sheet"
     },
     {
       "out": "motion-paths/wrist-path.png",
-      "args": ["examples/first-wave.vat", "--frame", "14", "--select", "mWristRight", "--tool", "select", "--focus",
-               "--distance", "1.1", "--window", "motion-path"],
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "14",
+        "--select",
+        "mWristRight",
+        "--tool",
+        "select",
+        "--focus",
+        "--distance",
+        "1.1",
+        "--window",
+        "motion-path"
+      ],
       "crop": "Viewport"
     },
     {
       "out": "graph-editor/graph-panel.png",
-      "args": ["examples/graph-basics.vat", "--frame", "22", "--select", "mElbowRight", "--window", "graph"],
+      "args": [
+        "examples/graph-basics.vat",
+        "--frame",
+        "22",
+        "--select",
+        "mElbowRight",
+        "--window",
+        "graph"
+      ],
       "crop": "Graph"
     },
     {
       "out": "vats/window.png",
-      "args": ["examples/first-wave.vat", "--frame", "20", "--select", "mElbowRight"]
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "20",
+        "--select",
+        "mElbowRight"
+      ]
     },
     {
       "out": "first-steps/start.png",
@@ -27,659 +63,1822 @@
     },
     {
       "out": "first-steps/waving-pose.png",
-      "args": ["--pose", "body-wave"],
+      "args": [
+        "--pose",
+        "body-wave"
+      ],
       "crop": "Viewport"
     },
     {
-      "out": "first-steps/elbow-frame-10.png",
-      "args": ["examples/first-wave.vat", "--frame", "10", "--select", "mElbowRight"],
-      "crop": [255, 25, 945, 375]
+      "out": "first-steps/swing-in.png",
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "20",
+        "--select",
+        "mElbowRight",
+        "--tool",
+        "rotate",
+        "--view",
+        "front",
+        "--target",
+        "examples/first-wave.vat"
+      ],
+      "crop": "Viewport",
+      "inset": [
+        80,
+        20,
+        360,
+        330
+      ]
     },
     {
       "out": "first-steps/timeline-keys.png",
-      "args": ["examples/first-wave.vat", "--frame", "10", "--select", "mElbowRight", "--window", "timeline"],
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "10",
+        "--select",
+        "mElbowRight",
+        "--window",
+        "timeline"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "first-steps/export-window.png",
-      "args": ["examples/first-wave.vat", "--window", "export"],
+      "args": [
+        "examples/first-wave.vat",
+        "--window",
+        "export"
+      ],
       "crop": "Export SL .anim"
     },
     {
       "out": "interface/window.png",
-      "args": ["examples/first-wave.vat", "--frame", "10", "--select", "mElbowRight"]
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "10",
+        "--select",
+        "mElbowRight"
+      ]
     },
     {
       "out": "interface/timeline.png",
-      "args": ["examples/first-wave.vat", "--frame", "10", "--select", "mElbowRight", "--window", "timeline"],
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "10",
+        "--select",
+        "mElbowRight",
+        "--window",
+        "timeline"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "preferences/window.png",
-      "args": ["--window", "preferences"],
+      "args": [
+        "--window",
+        "preferences"
+      ],
       "crop": "Preferences"
     },
     {
       "out": "control-presets/status-bar.png",
-      "args": ["--preset", "blender"],
-      "crop": [0, 976, 1200, 24]
+      "args": [
+        "--preset",
+        "blender"
+      ],
+      "crop": [
+        0,
+        976,
+        1200,
+        24
+      ]
     },
     {
       "out": "keyboard-shortcuts/controls-window.png",
-      "args": ["--window", "controls"],
+      "args": [
+        "--window",
+        "controls"
+      ],
       "crop": "Controls"
     },
     {
       "out": "keyboard-shortcuts/shortcuts-window.png",
-      "args": ["--window", "keys"],
+      "args": [
+        "--window",
+        "keys"
+      ],
       "crop": "Keyboard Shortcuts"
     },
     {
       "out": "project-library/inventory.png",
-      "args": ["--tab", "inventory"],
-      "crop": [0, 50, 252, 306]
+      "args": [
+        "--tab",
+        "inventory"
+      ],
+      "crop": [
+        0,
+        50,
+        252,
+        306
+      ]
     },
     {
       "out": "motion-capture/setup-and-connection.png",
-      "args": ["--window", "mocap"],
+      "args": [
+        "--window",
+        "mocap"
+      ],
       "size": "1200x1500",
       "crop": "Motion Capture",
-      "inset": [0, 0, 0, 502]
+      "inset": [
+        0,
+        0,
+        0,
+        502
+      ]
     },
     {
       "out": "motion-capture/record-and-clean-up.png",
-      "args": ["--window", "mocap"],
+      "args": [
+        "--window",
+        "mocap"
+      ],
       "size": "1200x1500",
       "crop": "Motion Capture",
-      "inset": [0, 786, 0, 0]
+      "inset": [
+        0,
+        786,
+        0,
+        0
+      ]
     },
     {
       "out": "face-tracking/face-section.png",
-      "args": ["--window", "mocap"],
+      "args": [
+        "--window",
+        "mocap"
+      ],
       "size": "1200x1500",
       "crop": "Motion Capture",
-      "inset": [0, 504, 0, 282]
+      "inset": [
+        0,
+        504,
+        0,
+        282
+      ]
     },
     {
       "out": "couples-and-groups/actors-window.png",
-      "args": ["examples/couple-handshake.vat", "--frame", "15", "--window", "actors"],
+      "args": [
+        "examples/couple-handshake.vat",
+        "--frame",
+        "15",
+        "--window",
+        "actors"
+      ],
       "crop": "Actors"
     },
     {
       "out": "clips/clips-window.png",
-      "args": ["examples/ao-set.vat", "--window", "clips"],
+      "args": [
+        "examples/ao-set.vat",
+        "--window",
+        "clips"
+      ],
       "crop": "Clips"
     },
     {
       "out": "couples-and-groups/two-actors.png",
-      "args": ["examples/couple-handshake.vat", "--frame", "15", "--select", "mWristRight", "--focus", "--distance", "2.2", "--tool", "select"],
+      "args": [
+        "examples/couple-handshake.vat",
+        "--frame",
+        "15",
+        "--select",
+        "mWristRight",
+        "--focus",
+        "--distance",
+        "2.2",
+        "--tool",
+        "select"
+      ],
       "crop": "Viewport"
     },
     {
       "out": "props/starter-props.png",
-      "args": ["--tab", "props"],
+      "args": [
+        "--tab",
+        "props"
+      ],
       "size": "1200x1500",
       "crop": "Inventory",
-      "inset": [0, 30, 0, 420]
+      "inset": [
+        0,
+        30,
+        0,
+        420
+      ]
     },
     {
       "out": "props/prop-properties.png",
-      "args": ["examples/prop-in-hand.vat", "--select-prop", "0"],
+      "args": [
+        "examples/prop-in-hand.vat",
+        "--select-prop",
+        "0"
+      ],
       "crop": "Properties",
-      "inset": [0, 0, 0, 285]
+      "inset": [
+        0,
+        0,
+        0,
+        285
+      ]
     },
     {
       "out": "props/mug-in-hand.png",
-      "args": ["examples/prop-in-hand.vat", "--select", "mWristRight", "--focus", "--distance", "1.0", "--tool", "select"],
+      "args": [
+        "examples/prop-in-hand.vat",
+        "--select",
+        "mWristRight",
+        "--focus",
+        "--distance",
+        "1.0",
+        "--tool",
+        "select"
+      ],
       "crop": "Viewport"
     },
     {
       "out": "mesh-bodies/bodies.png",
-      "args": ["--tab", "inventory"],
+      "args": [
+        "--tab",
+        "inventory"
+      ],
       "crop": "Inventory",
-      "inset": [0, 336, 0, 130]
+      "inset": [
+        0,
+        336,
+        0,
+        130
+      ]
+    },
+    {
+      "out": "rig-any-model/map-window.png",
+      "args": [
+        "--map-rig",
+        "../../data/bodies/mech/George.dae"
+      ],
+      "crop": "Map Rig to Second Life###map-rig"
+    },
+    {
+      "out": "rig-any-model/posed.png",
+      "args": [
+        "--mesh-body",
+        "../../data/bodies/mech/George.dae",
+        "--pose",
+        "body-wave",
+        "--view",
+        "front"
+      ],
+      "crop": "Viewport"
+    },
+    {
+      "out": "rig-from-scratch/markers.png",
+      "copy": ["data/bodies/mech/George.dae"],
+      "size": "1600x1000",
+      "args": ["--workspace", "pose", "--rig-scratch", "$COPY", "--view", "front"],
+      "crop": [487, 46, 1113, 674]
+    },
+    {
+      "out": "rig-from-scratch/paint.png",
+      "copy": ["data/bodies/mech/George.dae"],
+      "size": "1600x1000",
+      "args": ["--workspace", "pose", "--rig-scratch", "$COPY", "--rig-weights", "--rig-apply", "--window", "paint-weights",
+               "--select", "mElbowRight", "--view", "front"],
+      "crop": [487, 38, 1090, 682]
     },
     {
       "out": "vats-editor-viewer/actors-window.png",
-      "args": ["examples/couple-handshake.vat", "--frame", "15", "--window", "actors"],
+      "args": [
+        "examples/couple-handshake.vat",
+        "--frame",
+        "15",
+        "--window",
+        "actors"
+      ],
       "crop": "Actors"
     },
     {
       "out": "troubleshooting/about-window.png",
-      "args": ["--window", "about"],
+      "args": [
+        "--window",
+        "about"
+      ],
       "crop": "About Viewport Avatar Toolset"
     },
     {
       "out": "command-line/screenshot-command.png",
-      "args": ["examples/graph-basics.vat", "--frame", "22", "--select", "mElbowRight", "--window", "graph"]
+      "args": [
+        "examples/graph-basics.vat",
+        "--frame",
+        "22",
+        "--select",
+        "mElbowRight",
+        "--window",
+        "graph"
+      ]
     },
     {
       "out": "loop-tools/seam-tick.png",
-      "args": ["examples/loop-walk.vat", "--frame", "30"],
+      "args": [
+        "examples/loop-walk.vat",
+        "--frame",
+        "30"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "time-editing/insert-frames.png",
-      "args": ["examples/time-nod.vat", "--frame", "10", "--window", "insert-frames"],
+      "args": [
+        "examples/time-nod.vat",
+        "--frame",
+        "10",
+        "--window",
+        "insert-frames"
+      ],
       "crop": "Insert Frames"
     },
     {
       "out": "audio-track/timeline-beats.png",
-      "args": ["examples/audio-beats.vat", "../../tests/data/click_track.wav", "--frame", "45"],
+      "args": [
+        "examples/audio-beats.vat",
+        "../../tests/data/click_track.wav",
+        "--frame",
+        "45"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "lip-sync/timeline-shapes.png",
-      "args": ["examples/lip-sync.vat", "--frame", "10"],
+      "args": [
+        "examples/lip-sync.vat",
+        "--frame",
+        "10"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "dynamics/dynamics-window.png",
-      "args": ["examples/dynamics-tail.vat", "--window", "dynamics"],
+      "args": [
+        "examples/dynamics-tail.vat",
+        "--window",
+        "dynamics"
+      ],
       "crop": "Dynamics"
     },
     {
       "out": "ragdoll/ragdoll-window.png",
-      "args": ["examples/ragdoll-fall.vat", "--frame", "10", "--window", "ragdoll"],
+      "args": [
+        "examples/ragdoll-fall.vat",
+        "--frame",
+        "10",
+        "--window",
+        "ragdoll"
+      ],
       "crop": "Ragdoll"
     },
     {
       "out": "export-to-second-life/export-dialog.png",
-      "args": ["examples/graph-basics.vat", "--window", "export"],
+      "args": [
+        "examples/graph-basics.vat",
+        "--window",
+        "export"
+      ],
       "size": "2000x1500",
       "crop": "Export SL .anim"
     },
     {
       "out": "animation-priority/bone-priority.png",
-      "args": ["examples/priority-hand.vat", "--select", "mWristRight", "--window", "properties"],
+      "args": [
+        "examples/priority-hand.vat",
+        "--select",
+        "mWristRight",
+        "--window",
+        "properties"
+      ],
       "crop": "Properties"
     },
     {
       "out": "retargeting/retarget-dialog.png",
-      "args": ["--retarget", "../../tests/data/mixamo_walk.bvh"],
+      "args": [
+        "--retarget",
+        "../../tests/data/mixamo_walk.bvh"
+      ],
       "crop": "Import Animation (Retarget)"
     },
     {
       "out": "priority-planner/planner.png",
-      "args": ["examples/priority-hand.vat", "--select", "mElbowRight", "--plan-clip", "examples/retarget-walk.vat",
-               "--window", "planner"],
+      "args": [
+        "examples/priority-hand.vat",
+        "--select",
+        "mElbowRight",
+        "--plan-clip",
+        "examples/retarget-walk.vat",
+        "--window",
+        "planner"
+      ],
       "size": "1000x1000",
-      "crop": [0, 20, 1000, 580]
+      "crop": [
+        0,
+        20,
+        1000,
+        580
+      ]
     },
     {
       "out": "posing/rotate-gizmo.png",
-      "args": ["examples/posing-head-turn.vat", "--frame", "12", "--select", "mHead", "--tool", "rotate", "--focus"],
-      "crop": [400, 200, 330, 300]
+      "args": [
+        "examples/posing-head-turn.vat",
+        "--frame",
+        "12",
+        "--select",
+        "mHead",
+        "--tool",
+        "rotate",
+        "--focus"
+      ],
+      "crop": [
+        400,
+        200,
+        330,
+        300
+      ]
     },
     {
       "out": "posing/bone-properties.png",
-      "args": ["examples/keys-head-nod.vat", "--frame", "8", "--select", "mHead", "--tool", "select"],
-      "crop": [875, 55, 320, 150]
+      "args": [
+        "examples/keys-head-nod.vat",
+        "--frame",
+        "8",
+        "--select",
+        "mHead",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        875,
+        55,
+        320,
+        150
+      ]
     },
     {
       "out": "keys-and-timeline/timeline.png",
-      "args": ["examples/keys-head-nod.vat", "--frame", "8", "--select", "mHead", "--tool", "select"],
+      "args": [
+        "examples/keys-head-nod.vat",
+        "--frame",
+        "8",
+        "--select",
+        "mHead",
+        "--tool",
+        "select"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "ik/target-and-pole.png",
-      "args": ["examples/ik-reach.vat", "--frame", "0", "--tool", "select"],
-      "crop": [400, 60, 300, 260]
+      "args": [
+        "examples/ik-reach.vat",
+        "--frame",
+        "0",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        400,
+        60,
+        300,
+        260
+      ]
     },
     {
       "out": "ik/ik-controls.png",
-      "args": ["examples/ik-reach.vat", "--frame", "0", "--tool", "select", "--tab", "bones"],
-      "crop": [0, 195, 250, 70]
+      "args": [
+        "examples/ik-reach.vat",
+        "--frame",
+        "0",
+        "--tool",
+        "select",
+        "--tab",
+        "bones"
+      ],
+      "crop": [
+        0,
+        195,
+        250,
+        70
+      ]
     },
     {
       "out": "hold-and-bind/hand-on-table-0.png",
-      "args": ["examples/hold-hand-on-table.vat", "--frame", "0", "--tool", "select"],
-      "crop": [380, 90, 320, 300]
+      "args": [
+        "examples/hold-hand-on-table.vat",
+        "--frame",
+        "0",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        380,
+        90,
+        320,
+        300
+      ]
     },
     {
       "out": "hold-and-bind/hand-on-table-30.png",
-      "args": ["examples/hold-hand-on-table.vat", "--frame", "30", "--tool", "select"],
-      "crop": [380, 90, 320, 300]
+      "args": [
+        "examples/hold-hand-on-table.vat",
+        "--frame",
+        "30",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        380,
+        90,
+        320,
+        300
+      ]
     },
     {
       "out": "hold-and-bind/pinned-properties.png",
-      "args": ["examples/hold-hand-on-table.vat", "--frame", "0", "--select", "mWristRight", "--tool", "select"],
-      "crop": [875, 55, 320, 175]
+      "args": [
+        "examples/hold-hand-on-table.vat",
+        "--frame",
+        "0",
+        "--select",
+        "mWristRight",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        875,
+        55,
+        320,
+        175
+      ]
     },
     {
       "out": "hand-poser/hands-window.png",
-      "args": ["examples/hand-poser-fist.vat", "--window", "hands", "--tool", "select"],
-      "crop": "Hands"
+      "args": [
+        "examples/hand-poser-fist.vat",
+        "--window",
+        "hands",
+        "--tool",
+        "select"
+      ],
+      "crop": "Hand Poser"
     },
     {
       "out": "pose-library/inventory-poses.png",
-      "args": ["examples/pose-library-two-poses.vat", "--frame", "12", "--tab", "poses", "--tool", "select"],
+      "args": [
+        "examples/pose-library-two-poses.vat",
+        "--frame",
+        "12",
+        "--tab",
+        "poses",
+        "--tool",
+        "select"
+      ],
       "crop": "Inventory"
     },
     {
       "out": "pose-library/fitting-stances.png",
-      "args": ["--tab", "poses", "--filter", "fitting", "--tool", "select"],
+      "args": [
+        "--tab",
+        "poses",
+        "--filter",
+        "fitting",
+        "--tool",
+        "select"
+      ],
       "crop": "Inventory"
     },
     {
       "out": "mirror-flip-and-reverse/left-arm-posed.png",
-      "args": ["examples/mirror-arm.vat", "--select", "mShoulderLeft", "--tool", "select"],
-      "crop": [400, 40, 320, 300]
+      "args": [
+        "examples/mirror-arm.vat",
+        "--select",
+        "mShoulderLeft",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        400,
+        40,
+        320,
+        300
+      ]
     },
     {
       "out": "target-ghost/ghost.png",
-      "args": ["examples/posing-head-turn.vat", "--target", "examples/target-head-turn.vat", "--frame", "0", "--select", "mHead",
-               "--focus", "--distance", "0.9", "--tool", "select"],
-      "crop": [340, 170, 480, 300]
+      "args": [
+        "examples/posing-head-turn.vat",
+        "--target",
+        "examples/target-head-turn.vat",
+        "--frame",
+        "0",
+        "--select",
+        "mHead",
+        "--focus",
+        "--distance",
+        "0.9",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        340,
+        170,
+        480,
+        300
+      ]
     },
     {
       "out": "target-ghost/menu.png",
-      "args": ["examples/posing-head-turn.vat", "--target", "examples/target-head-turn.vat", "--frame", "0", "--select", "mHead",
-               "--tool", "select", "--open-menu", "View/Target Ghost"],
-      "crop": [150, 150, 470, 112]
+      "args": [
+        "examples/posing-head-turn.vat",
+        "--target",
+        "examples/target-head-turn.vat",
+        "--frame",
+        "0",
+        "--select",
+        "mHead",
+        "--tool",
+        "select",
+        "--open-menu",
+        "View/Target Ghost"
+      ],
+      "crop": [
+        150,
+        150,
+        470,
+        112
+      ]
     },
     {
       "out": "onion-skin/ghosts.png",
-      "args": ["examples/onion-arm-swing.vat", "--frame", "6", "--tool", "select"],
-      "crop": [400, 60, 420, 330]
+      "args": [
+        "examples/onion-arm-swing.vat",
+        "--frame",
+        "6",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        400,
+        60,
+        420,
+        330
+      ]
     },
     {
       "out": "skeleton/attachment-points.png",
-      "args": ["--body", "none", "--points", "--pose", "body-stand", "--tool", "select"],
-      "crop": [420, 100, 300, 400]
+      "args": [
+        "--body",
+        "none",
+        "--points",
+        "--pose",
+        "body-stand",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        420,
+        100,
+        300,
+        400
+      ]
     },
     {
       "out": "graph-editor/simplify-curves.png",
-      "args": ["examples/retarget-walk.vat", "--frame", "20", "--select", "mHipLeft", "--window", "graph", "--window", "simplify"],
-      "crop": [0, 600, 1200, 400]
+      "args": [
+        "examples/retarget-walk.vat",
+        "--frame",
+        "20",
+        "--select",
+        "mHipLeft",
+        "--window",
+        "graph",
+        "--window",
+        "simplify"
+      ],
+      "crop": [
+        0,
+        600,
+        1200,
+        400
+      ]
     },
     {
       "out": "motion-quality/panel.png",
-      "args": ["examples/retarget-walk.vat", "--window", "quality"],
+      "args": [
+        "examples/retarget-walk.vat",
+        "--window",
+        "quality"
+      ],
       "crop": "Motion Quality"
     },
     {
       "out": "balance/lean-outside.png",
-      "args": ["examples/balance-lean.vat", "--frame", "30", "--tool", "select"],
+      "args": [
+        "examples/balance-lean.vat",
+        "--frame",
+        "30",
+        "--tool",
+        "select"
+      ],
       "crop": "Viewport"
     },
     {
       "out": "balance/auto-balance-window.png",
-      "args": ["examples/balance-lean.vat", "--window", "auto-balance"],
+      "args": [
+        "examples/balance-lean.vat",
+        "--window",
+        "auto-balance"
+      ],
       "crop": "Auto-Balance"
     },
     {
       "out": "balance/jump-arc-window.png",
-      "args": ["examples/balance-lean.vat", "--window", "jump-arc"],
+      "args": [
+        "examples/balance-lean.vat",
+        "--window",
+        "jump-arc"
+      ],
       "crop": "Jump Arc"
     },
     {
       "out": "keys-and-timeline/blocking.png",
-      "args": ["examples/blocking-arm.vat", "--frame", "24", "--select", "mShoulderRight", "--window", "timeline"],
+      "args": [
+        "examples/blocking-arm.vat",
+        "--frame",
+        "24",
+        "--select",
+        "mShoulderRight",
+        "--window",
+        "timeline"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "keys-and-timeline/tagged-keys.png",
-      "args": ["examples/blocking-arm.vat", "--frame", "24", "--select", "mElbowRight", "--window", "graph"],
+      "args": [
+        "examples/blocking-arm.vat",
+        "--frame",
+        "24",
+        "--select",
+        "mElbowRight",
+        "--window",
+        "graph"
+      ],
       "crop": "Graph"
     },
     {
       "out": "picker/picker.png",
-      "args": ["examples/blocking-arm.vat", "--frame", "24", "--select", "mElbowRight", "--picker", "body",
-               "--picker-style", "silhouette"],
-      "size": "1280x720", "crop": "Picker"
+      "args": [
+        "examples/blocking-arm.vat",
+        "--frame",
+        "24",
+        "--select",
+        "mElbowRight",
+        "--picker",
+        "body",
+        "--picker-style",
+        "silhouette"
+      ],
+      "size": "1280x720",
+      "crop": "Picker"
     },
     {
       "out": "picker/avatar.png",
-      "args": ["examples/blocking-arm.vat", "--frame", "24", "--select", "mElbowRight", "--picker", "body",
-               "--picker-style", "avatar"],
-      "size": "1280x720", "crop": "Picker"
+      "args": [
+        "examples/blocking-arm.vat",
+        "--frame",
+        "24",
+        "--select",
+        "mElbowRight",
+        "--picker",
+        "body",
+        "--picker-style",
+        "avatar"
+      ],
+      "size": "1280x720",
+      "crop": "Picker"
     },
     {
       "out": "picker/crossed-live.png",
-      "args": ["--pose", "body-arms-crossed", "--select", "mWristLeft", "--picker", "body", "--picker-style", "avatar"],
-      "size": "1280x720", "crop": "Picker"
+      "args": [
+        "--pose",
+        "body-arms-crossed",
+        "--select",
+        "mWristLeft",
+        "--picker",
+        "body",
+        "--picker-style",
+        "avatar"
+      ],
+      "size": "1280x720",
+      "crop": "Picker"
     },
     {
       "out": "picker/crossed-rest.png",
-      "args": ["--pose", "body-arms-crossed", "--select", "mWristLeft", "--picker", "body", "--picker-style", "rest"],
-      "size": "1280x720", "crop": "Picker"
+      "args": [
+        "--pose",
+        "body-arms-crossed",
+        "--select",
+        "mWristLeft",
+        "--picker",
+        "body",
+        "--picker-style",
+        "rest"
+      ],
+      "size": "1280x720",
+      "crop": "Picker"
     },
     {
       "out": "picker/hands.png",
-      "args": ["--pose", "hand-relaxed", "--select-group", "Right Thumb", "--picker", "hands",
-               "--picker-style", "silhouette"],
-      "size": "1280x720", "crop": "Picker"
+      "args": [
+        "--pose",
+        "hand-relaxed",
+        "--select-group",
+        "Right Thumb",
+        "--picker",
+        "hands",
+        "--picker-style",
+        "silhouette"
+      ],
+      "size": "1280x720",
+      "crop": "Picker"
     },
     {
       "out": "picker/face.png",
-      "args": ["--select-group", "Brows", "--picker", "face", "--picker-style", "avatar"],
-      "size": "1280x720", "crop": "Picker"
+      "args": [
+        "--select-group",
+        "Brows",
+        "--picker",
+        "face",
+        "--picker-style",
+        "avatar"
+      ],
+      "size": "1280x720",
+      "crop": "Picker"
     },
     {
       "out": "picker/extras-tail.png",
-      "args": ["--select-group", "Tail", "--picker", "extras/tail", "--picker-style", "silhouette"],
-      "size": "1280x720", "crop": "Picker"
+      "args": [
+        "--select-group",
+        "Tail",
+        "--picker",
+        "extras/tail",
+        "--picker-style",
+        "silhouette"
+      ],
+      "size": "1280x720",
+      "crop": "Picker"
     },
     {
       "out": "reference-images/reference-window.png",
-      "args": ["--reference", "images/reference-images/wave-sketch.png", "--pose", "body-wave", "--tool", "select"],
-      "crop": [0, 25, 870, 575]
+      "args": [
+        "--reference",
+        "images/reference-images/wave-sketch.png",
+        "--pose",
+        "body-wave",
+        "--tool",
+        "select"
+      ],
+      "crop": [
+        0,
+        25,
+        870,
+        575
+      ]
     },
     {
       "out": "listing-media/listing-window.png",
-      "args": ["examples/loop-walk.vat", "--window", "listing-media"],
+      "args": [
+        "examples/loop-walk.vat",
+        "--window",
+        "listing-media"
+      ],
       "crop": "Export Listing Media"
     },
     {
       "out": "animation-check/check-window.png",
-      "args": ["examples/retarget-walk.vat", "--window", "check"],
+      "args": [
+        "examples/retarget-walk.vat",
+        "--window",
+        "check"
+      ],
       "crop": "Animation Check"
     },
     {
       "out": "sl-preview/as-sl-plays-it.png",
-      "args": ["examples/loop-walk.vat", "--frame", "8", "--window", "sl-preview"],
+      "args": [
+        "examples/loop-walk.vat",
+        "--frame",
+        "8",
+        "--window",
+        "sl-preview"
+      ],
       "crop": "As SL Plays It"
     },
     {
       "out": "idle-layer/idle-window.png",
-      "args": ["examples/idle-stand.vat", "--window", "idle"],
+      "args": [
+        "examples/idle-stand.vat",
+        "--window",
+        "idle"
+      ],
       "crop": "Idle Layer",
-      "inset": [0, 0, 0, 460]
+      "inset": [
+        0,
+        0,
+        0,
+        460
+      ]
     },
     {
       "out": "overlap/overlap-window.png",
-      "args": ["examples/first-wave.vat", "--select", "mShoulderRight", "--window", "overlap"],
+      "args": [
+        "examples/first-wave.vat",
+        "--select",
+        "mShoulderRight",
+        "--window",
+        "overlap"
+      ],
       "crop": "Overlap",
-      "inset": [0, 0, 0, 265]
+      "inset": [
+        0,
+        0,
+        0,
+        265
+      ]
     },
     {
       "out": "face-animation/face-window.png",
-      "args": ["--window", "face"],
+      "args": [
+        "--window",
+        "face"
+      ],
       "size": "1200x1500",
       "crop": "Face",
-      "inset": [0, 0, 0, 372]
+      "inset": [
+        0,
+        0,
+        0,
+        372
+      ]
     },
     {
       "out": "couples-and-groups/sit-export.png",
-      "args": ["examples/couple-handshake.vat", "--window", "sit"],
+      "args": [
+        "examples/couple-handshake.vat",
+        "--window",
+        "sit"
+      ],
       "crop": "Actors",
-      "inset": [0, 62, 0, 455]
+      "inset": [
+        0,
+        62,
+        0,
+        455
+      ]
     },
     {
       "out": "loop-tools/loop-assist.png",
-      "args": ["examples/loop-walk.vat", "--window", "loop-assist"],
+      "args": [
+        "examples/loop-walk.vat",
+        "--window",
+        "loop-assist"
+      ],
       "crop": "Loop Assist"
     },
     {
       "out": "loop-tools/treadmill.png",
-      "args": ["examples/loop-walk.vat", "--frame", "0", "--window", "treadmill", "--view", "right"],
+      "args": [
+        "examples/loop-walk.vat",
+        "--frame",
+        "0",
+        "--window",
+        "treadmill",
+        "--view",
+        "right"
+      ],
       "crop": "Viewport"
     },
     {
       "out": "interface/orthographic.png",
-      "args": ["examples/first-wave.vat", "--frame", "10", "--view", "ortho", "--view", "front"],
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "10",
+        "--view",
+        "ortho",
+        "--view",
+        "front"
+      ],
       "crop": "Viewport"
     },
     {
       "out": "interface/light-dusk.png",
-      "args": ["examples/first-wave.vat", "--frame", "10", "--light", "dusk", "--backdrop"],
+      "args": [
+        "examples/first-wave.vat",
+        "--frame",
+        "10",
+        "--light",
+        "dusk",
+        "--backdrop"
+      ],
       "crop": "Viewport"
     },
     {
-      "out": "tutorial-sit-pose/sitting-floats.png",
-      "args": ["examples/sit-start.vat", "--view", "right"],
-      "crop": "Viewport",
-      "inset": [150, 60, 420, 520]
-    },
-    {
-      "out": "tutorial-sit-pose/check-feet.png",
-      "args": ["examples/sit-start.vat", "--window", "check"],
-      "crop": "Animation Check"
-    },
-    {
       "out": "tutorial-sit-pose/export-heights.png",
-      "args": ["examples/sit-chair.vat", "--window", "export"],
+      "args": [
+        "examples/sit-chair.vat",
+        "--window",
+        "export"
+      ],
       "size": "1200x1500",
       "crop": "Export SL .anim",
-      "inset": [0, 0, 0, 372]
+      "inset": [
+        0,
+        0,
+        0,
+        372
+      ]
+    },
+    {
+      "out": "tutorial-sit-pose/sit-on-this.png",
+      "args": [
+        "examples/sit-start.vat",
+        "--sit",
+        "--view",
+        "right",
+        "--tool",
+        "select"
+      ],
+      "crop": "Viewport",
+      "inset": [
+        150,
+        60,
+        420,
+        520
+      ]
     },
     {
       "out": "tutorial-sip-mug/hold-frame-0.png",
-      "args": ["examples/sip-start.vat", "--select", "mChest", "--tool", "select", "--focus", "--distance", "2.2"],
+      "args": [
+        "examples/sip-start.vat",
+        "--select",
+        "mChest",
+        "--tool",
+        "select",
+        "--focus",
+        "--distance",
+        "2.2"
+      ],
       "crop": "Viewport",
-      "inset": [180, 80, 400, 440]
-    },
-    {
-      "out": "tutorial-your-first-pose/picker.png",
-      "args": ["examples/tutorial-first-pose.vat", "--select", "mHead", "--tool", "select", "--window", "picker"],
-      "crop": "Picker"
-    },
-    {
-      "out": "tutorial-your-first-pose/shoulder-rotation.png",
-      "args": ["examples/tutorial-first-pose.vat", "--select", "mShoulderLeft", "--view", "front"],
-      "crop": [255, 25, 945, 375]
+      "inset": [
+        180,
+        80,
+        400,
+        440
+      ]
     },
     {
       "out": "tutorial-timing-and-spacing/timeline-keys.png",
-      "args": ["examples/tutorial-nod.vat", "--frame", "8", "--select", "mHead", "--window", "timeline"],
+      "args": [
+        "examples/tutorial-nod.vat",
+        "--frame",
+        "8",
+        "--select",
+        "mHead",
+        "--window",
+        "timeline"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "tutorial-timing-and-spacing/graph-linear.png",
-      "args": ["examples/tutorial-nod-linear.vat", "--frame", "8", "--select", "mHead", "--window", "graph"],
+      "args": [
+        "examples/tutorial-nod-linear.vat",
+        "--frame",
+        "8",
+        "--select",
+        "mHead",
+        "--window",
+        "graph"
+      ],
       "crop": "Graph"
     },
     {
       "out": "tutorial-timing-and-spacing/graph-eased.png",
-      "args": ["examples/tutorial-nod.vat", "--frame", "8", "--select", "mHead", "--window", "graph"],
+      "args": [
+        "examples/tutorial-nod.vat",
+        "--frame",
+        "8",
+        "--select",
+        "mHead",
+        "--window",
+        "graph"
+      ],
       "crop": "Graph"
     },
     {
+      "out": "tutorial-your-first-pose/target.png",
+      "args": [
+        "--pose",
+        "body-contrapposto",
+        "--target",
+        "examples/tutorial-first-pose.vat",
+        "--view",
+        "front",
+        "--tool",
+        "select"
+      ],
+      "crop": "Viewport",
+      "inset": [
+        115,
+        0,
+        420,
+        400
+      ]
+    },
+    {
       "out": "tutorial-breathing-idle/graph-chest.png",
-      "args": ["examples/tutorial-breathing-idle.vat", "--frame", "48", "--select", "mChest", "--window", "graph"],
+      "args": [
+        "examples/tutorial-breathing-idle.vat",
+        "--frame",
+        "48",
+        "--select",
+        "mChest",
+        "--window",
+        "graph"
+      ],
       "crop": "Graph"
     },
     {
       "out": "tutorial-breathing-idle/animation-settings.png",
-      "args": ["examples/tutorial-breathing-idle.vat", "--frame", "48"],
+      "args": [
+        "examples/tutorial-breathing-idle.vat",
+        "--frame",
+        "48"
+      ],
       "crop": "Properties",
-      "inset": [0, 0, 0, 420]
+      "inset": [
+        0,
+        0,
+        0,
+        420
+      ]
     },
     {
       "out": "tutorial-breathing-idle/upload-size.png",
-      "args": ["examples/tutorial-breathing-idle.vat", "--window", "export"],
+      "args": [
+        "examples/tutorial-breathing-idle.vat",
+        "--window",
+        "export"
+      ],
       "crop": "Export SL .anim",
-      "inset": [0, 0, 0, 702]
+      "inset": [
+        0,
+        0,
+        0,
+        702
+      ]
     },
     {
       "out": "tutorial-sword-swing/check-priority.png",
-      "args": ["examples/sword-start.vat", "--window", "check"],
+      "args": [
+        "examples/sword-start.vat",
+        "--window",
+        "check"
+      ],
       "crop": "Animation Check",
-      "inset": [0, 0, 0, 160]
+      "inset": [
+        0,
+        0,
+        0,
+        160
+      ]
     },
     {
       "out": "tutorial-sword-swing/anticipation.png",
-      "args": ["examples/sword-keys.vat", "--frame", "12", "--view", "front", "--distance", "3.1"],
+      "args": [
+        "examples/sword-keys.vat",
+        "--frame",
+        "12",
+        "--view",
+        "front",
+        "--distance",
+        "3.1"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-sword-swing/impact.png",
-      "args": ["examples/sword-keys.vat", "--frame", "18", "--view", "front", "--distance", "3.1"],
+      "args": [
+        "examples/sword-keys.vat",
+        "--frame",
+        "18",
+        "--view",
+        "front",
+        "--distance",
+        "3.1"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-sword-swing/follow-through.png",
-      "args": ["examples/sword-keys.vat", "--frame", "24", "--view", "front", "--distance", "3.1"],
+      "args": [
+        "examples/sword-keys.vat",
+        "--frame",
+        "24",
+        "--view",
+        "front",
+        "--distance",
+        "3.1"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-sword-swing/path-flat.png",
-      "args": ["examples/sword-keys.vat", "--frame", "15", "--select", "mWristRight", "--tool", "select",
-               "--window", "motion-path", "--view", "front", "--distance", "3.1"],
+      "args": [
+        "examples/sword-keys.vat",
+        "--frame",
+        "15",
+        "--select",
+        "mWristRight",
+        "--tool",
+        "select",
+        "--window",
+        "motion-path",
+        "--view",
+        "front",
+        "--distance",
+        "3.1"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-sword-swing/path-arc.png",
-      "args": ["examples/sword-swing.vat", "--frame", "15", "--select", "mWristRight", "--tool", "select",
-               "--window", "motion-path", "--view", "front", "--distance", "3.1"],
+      "args": [
+        "examples/sword-swing.vat",
+        "--frame",
+        "15",
+        "--select",
+        "mWristRight",
+        "--tool",
+        "select",
+        "--window",
+        "motion-path",
+        "--view",
+        "front",
+        "--distance",
+        "3.1"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-sword-swing/overlap-window.png",
-      "args": ["examples/sword-keys.vat", "--select", "mShoulderLeft", "--window", "overlap"],
+      "args": [
+        "examples/sword-keys.vat",
+        "--select",
+        "mShoulderLeft",
+        "--window",
+        "overlap"
+      ],
       "crop": "Overlap",
-      "inset": [0, 0, 0, 260]
+      "inset": [
+        0,
+        0,
+        0,
+        260
+      ]
     },
     {
       "out": "tutorial-pistol-hold/grip.png",
-      "args": ["examples/pistol-hold.vat", "--select", "mWristRight", "--tool", "select", "--focus", "--distance", "0.5"],
+      "args": [
+        "examples/pistol-hold.vat",
+        "--select",
+        "mWristRight",
+        "--tool",
+        "select",
+        "--focus",
+        "--distance",
+        "0.5"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-pistol-hold/aim-line.png",
-      "args": ["examples/pistol-hold.vat", "--tool", "select", "--view", "ortho", "--view", "top", "--distance", "2.2"],
+      "args": [
+        "examples/pistol-hold.vat",
+        "--tool",
+        "select",
+        "--view",
+        "ortho",
+        "--view",
+        "top",
+        "--distance",
+        "2.2"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-pistol-hold/planner.png",
-      "args": ["examples/pistol-hold.vat", "--select", "mShoulderRight", "--plan-clip", "examples/loop-walk.vat",
-               "--window", "planner"],
+      "args": [
+        "examples/pistol-hold.vat",
+        "--select",
+        "mShoulderRight",
+        "--plan-clip",
+        "examples/loop-walk.vat",
+        "--window",
+        "planner"
+      ],
       "size": "1000x1000",
-      "crop": [0, 20, 1000, 580]
+      "crop": [
+        0,
+        20,
+        1000,
+        580
+      ]
     },
     {
       "out": "tutorial-pistol-hold/idle-window.png",
-      "args": ["examples/pistol-hold-breathing.vat", "--window", "idle"],
+      "args": [
+        "examples/pistol-hold-breathing.vat",
+        "--window",
+        "idle"
+      ],
       "crop": "Idle Layer",
-      "inset": [0, 0, 0, 430]
+      "inset": [
+        0,
+        0,
+        0,
+        430
+      ]
     },
     {
       "out": "tutorial-rifle-hold/aim.png",
-      "args": ["examples/rifle-hold.vat", "--tool", "select", "--view", "right", "--distance", "3.0"],
+      "args": [
+        "examples/rifle-hold.vat",
+        "--tool",
+        "select",
+        "--view",
+        "right",
+        "--distance",
+        "3.0"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-rifle-hold/support-hand.png",
-      "args": ["examples/rifle-hold.vat", "--select", "mWristLeft", "--tool", "select", "--focus", "--distance", "0.6"],
+      "args": [
+        "examples/rifle-hold.vat",
+        "--select",
+        "mWristLeft",
+        "--tool",
+        "select",
+        "--focus",
+        "--distance",
+        "0.6"
+      ],
       "size": "800x800",
       "crop": "Viewport"
     },
     {
       "out": "tutorial-rifle-hold/bound-wrist.png",
-      "args": ["examples/rifle-hold.vat", "--select", "mWristLeft", "--tool", "select", "--window", "properties"],
+      "args": [
+        "examples/rifle-hold.vat",
+        "--select",
+        "mWristLeft",
+        "--tool",
+        "select",
+        "--window",
+        "properties"
+      ],
       "crop": "Properties",
-      "inset": [0, 0, 0, 200]
+      "inset": [
+        0,
+        0,
+        0,
+        200
+      ]
     },
     {
       "out": "tutorial-walk-cycle/contact.png",
-      "args": ["examples/walk-first-step.vat", "--view", "right"],
+      "args": [
+        "examples/walk-first-step.vat",
+        "--view",
+        "right"
+      ],
       "crop": "Viewport",
-      "inset": [110, 60, 490, 520]
+      "inset": [
+        110,
+        60,
+        490,
+        520
+      ]
     },
     {
       "out": "tutorial-walk-cycle/treadmill-menu.png",
-      "args": ["examples/walk-cycle.vat", "--window", "treadmill", "--open-menu", "View/Treadmill"],
+      "args": [
+        "examples/walk-cycle.vat",
+        "--window",
+        "treadmill",
+        "--open-menu",
+        "View/Treadmill"
+      ],
       "size": "1280x800",
-      "crop": [392, 208, 246, 332]
+      "crop": [
+        392,
+        208,
+        246,
+        332
+      ]
     },
     {
       "out": "tutorial-walk-cycle/clips-window.png",
-      "args": ["examples/walk-cycle.vat", "--window", "clips"],
+      "args": [
+        "examples/walk-cycle.vat",
+        "--window",
+        "clips"
+      ],
       "crop": "Clips",
-      "inset": [0, 0, 0, 440]
+      "inset": [
+        0,
+        0,
+        0,
+        440
+      ]
     },
     {
       "out": "tutorial-sip-mug/grip-close.png",
-      "args": ["examples/sip-start.vat", "--view", "front", "--select", "mWristRight", "--tool", "select", "--focus", "--distance", "0.5"],
+      "args": [
+        "examples/sip-start.vat",
+        "--view",
+        "front",
+        "--select",
+        "mWristRight",
+        "--tool",
+        "select",
+        "--focus",
+        "--distance",
+        "0.5"
+      ],
       "crop": "Viewport",
-      "inset": [150, 60, 420, 360]
+      "inset": [
+        150,
+        60,
+        420,
+        360
+      ]
     },
     {
       "out": "tutorial-a-hug-for-two/check.png",
-      "args": ["examples/hug-start.vat", "--window", "check"],
+      "args": [
+        "examples/hug-start.vat",
+        "--window",
+        "check"
+      ],
       "crop": "Animation Check",
-      "inset": [0, 0, 0, 300]
+      "inset": [
+        0,
+        0,
+        0,
+        300
+      ]
     },
     {
       "out": "tutorial-a-hug-for-two/sit-lines.png",
-      "args": ["examples/hug-finished.vat", "--window", "sit"],
+      "args": [
+        "examples/hug-finished.vat",
+        "--window",
+        "sit"
+      ],
       "crop": "Actors"
     },
     {
       "out": "tutorial-dance-to-the-beat/beat-grid.png",
-      "args": ["examples/dance-grid.vat", "../../tests/data/click_track.wav", "--frame", "30"],
+      "args": [
+        "examples/dance-grid.vat",
+        "../../tests/data/click_track.wav",
+        "--frame",
+        "30"
+      ],
       "crop": "Timeline"
     },
     {
       "out": "tutorial-dance-to-the-beat/split.png",
-      "args": ["examples/dance-long.vat", "--window", "split-dance"],
+      "args": [
+        "examples/dance-long.vat",
+        "--window",
+        "split-dance"
+      ],
       "crop": "Split Dance at Beats"
     },
     {
       "out": "tutorial-the-polish-pass/motion-path.png",
-      "args": ["examples/polish-finished.vat", "--frame", "15", "--select", "mWristRight", "--tool", "select", "--view", "right",
-               "--window", "motion-path"],
+      "args": [
+        "examples/polish-finished.vat",
+        "--frame",
+        "15",
+        "--select",
+        "mWristRight",
+        "--tool",
+        "select",
+        "--view",
+        "right",
+        "--window",
+        "motion-path"
+      ],
       "crop": "Viewport"
     },
     {
       "out": "tutorial-the-polish-pass/check.png",
-      "args": ["examples/polish-mid.vat", "--window", "check"],
+      "args": [
+        "examples/polish-mid.vat",
+        "--window",
+        "check"
+      ],
       "crop": "Animation Check",
-      "inset": [0, 0, 0, 330]
+      "inset": [
+        0,
+        0,
+        0,
+        330
+      ]
     },
     {
       "out": "tutorial-the-polish-pass/sl-preview.png",
-      "args": ["examples/polish-finished.vat", "--window", "sl-preview"],
+      "args": [
+        "examples/polish-finished.vat",
+        "--window",
+        "sl-preview"
+      ],
       "crop": "As SL Plays It"
     },
     {
       "out": "tutorial-the-polish-pass/quality.png",
-      "args": ["examples/retarget-walk.vat", "--window", "quality"],
+      "args": [
+        "examples/retarget-walk.vat",
+        "--window",
+        "quality"
+      ],
       "crop": "Motion Quality"
     },
     {
       "out": "tutorial-the-polish-pass/fit.png",
-      "args": ["examples/polish-heavy.vat", "--window", "export"],
+      "args": [
+        "examples/polish-heavy.vat",
+        "--window",
+        "export"
+      ],
       "size": "1200x1500",
       "crop": "Export SL .anim",
-      "inset": [0, 405, 0, 0]
+      "inset": [
+        0,
+        405,
+        0,
+        0
+      ]
     },
     {
       "out": "tutorial-dynamics/ear-graph.png",
-      "args": ["examples/dynamics-ears.vat", "--select", "mFaceEar1Left", "--frame", "20", "--window", "graph"],
+      "args": [
+        "examples/dynamics-ears.vat",
+        "--select",
+        "mFaceEar1Left",
+        "--frame",
+        "20",
+        "--window",
+        "graph"
+      ],
       "crop": "Graph"
     },
     {
       "out": "tutorial-dynamics/simplify.png",
-      "args": ["examples/dynamics-walk-tail.vat", "--window", "simplify"],
+      "args": [
+        "examples/dynamics-walk-tail.vat",
+        "--window",
+        "simplify"
+      ],
       "crop": "Simplify Curves"
     },
     {
       "out": "tutorial-dynamics-keys-and-export/upload-size.png",
-      "args": ["examples/dynamics-walk-wag.vat", "--window", "export"],
+      "args": [
+        "examples/dynamics-walk-wag.vat",
+        "--window",
+        "export"
+      ],
       "crop": "Export SL .anim"
     },
     {
       "out": "tutorial-sip-mug/at-the-lips.png",
-      "args": ["examples/sip-mug.vat", "--frame", "20", "--view", "right", "--select", "mHead", "--tool", "select", "--focus", "--distance", "1.1"],
+      "args": [
+        "examples/sip-mug.vat",
+        "--frame",
+        "20",
+        "--view",
+        "right",
+        "--select",
+        "mHead",
+        "--tool",
+        "select",
+        "--focus",
+        "--distance",
+        "1.1"
+      ],
       "crop": "Viewport",
-      "inset": [200, 170, 380, 300]
+      "inset": [
+        200,
+        170,
+        380,
+        300
+      ]
     },
-    {"out": "tutorial-run-cycle/balance-down.png", "args": ["examples/run-cycle.vat", "--frame", "2", "--view", "right", "--tool", "select"], "crop": "Viewport"},
-    {"out": "tutorial-run-cycle/overlap-window.png", "args": ["examples/run-timed.vat", "--select", "mChest", "--window", "overlap"], "crop": "Overlap", "inset": [0, 0, 0, 255]},
-    {"out": "tutorial-run-cycle/graph-hip.png", "args": ["examples/run-cycle.vat", "--select", "mHipRight", "--window", "graph"], "crop": "Graph"},
-    {"out": "tutorial-run-cycle/check-window.png", "args": ["examples/run-timed.vat", "--window", "check"], "crop": "Animation Check", "inset": [0, 0, 0, 330]},
-    {"out": "tutorial-run-cycle/upload-size.png", "args": ["examples/run-cycle.vat", "--window", "export"], "crop": "Export SL .anim", "inset": [0, 462, 0, 180]},
-    {"out": "tutorial-turns/lead.png", "args": ["examples/turn-left.vat", "--frame", "0", "--view", "front", "--tool", "select"], "crop": "Viewport"},
-    {"out": "tutorial-turns/clips-window.png", "args": ["examples/turn-left.vat", "--window", "clips"], "crop": "Clips"}
+    {
+      "out": "tutorial-run-cycle/balance-down.png",
+      "args": [
+        "examples/run-cycle.vat",
+        "--frame",
+        "2",
+        "--view",
+        "right",
+        "--tool",
+        "select"
+      ],
+      "crop": "Viewport"
+    },
+    {
+      "out": "tutorial-run-cycle/overlap-window.png",
+      "args": [
+        "examples/run-timed.vat",
+        "--select",
+        "mChest",
+        "--window",
+        "overlap"
+      ],
+      "crop": "Overlap",
+      "inset": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "out": "tutorial-run-cycle/graph-hip.png",
+      "args": [
+        "examples/run-cycle.vat",
+        "--select",
+        "mHipRight",
+        "--window",
+        "graph"
+      ],
+      "crop": "Graph"
+    },
+    {
+      "out": "tutorial-run-cycle/check-window.png",
+      "args": [
+        "examples/run-timed.vat",
+        "--window",
+        "check"
+      ],
+      "crop": "Animation Check",
+      "inset": [
+        0,
+        0,
+        0,
+        330
+      ]
+    },
+    {
+      "out": "tutorial-run-cycle/upload-size.png",
+      "args": [
+        "examples/run-cycle.vat",
+        "--window",
+        "export"
+      ],
+      "crop": "Export SL .anim",
+      "inset": [
+        0,
+        462,
+        0,
+        180
+      ]
+    },
+    {
+      "out": "tutorial-turns/lead.png",
+      "args": [
+        "examples/turn-left.vat",
+        "--frame",
+        "0",
+        "--view",
+        "front",
+        "--tool",
+        "select"
+      ],
+      "crop": "Viewport"
+    },
+    {
+      "out": "tutorial-turns/clips-window.png",
+      "args": [
+        "examples/turn-left.vat",
+        "--window",
+        "clips"
+      ],
+      "crop": "Clips"
+    },
+    {
+      "out": "rigging-for-sl-without-add-ons/export-window.png",
+      "body": [
+        "--long-legs"
+      ],
+      "args": [
+        "--import-body",
+        "$BODY",
+        "--window",
+        "rig-export"
+      ],
+      "crop": "Export Rigged Mesh for SL"
+    },
+    {
+      "out": "joint-offset-inspector/inspector.png",
+      "body": [
+        "--long-legs"
+      ],
+      "body_parts": [
+        "lower.dae",
+        "upper.dae",
+        "head.dae"
+      ],
+      "args": [
+        "--import-body",
+        "$BODY",
+        "--window",
+        "joint-inspector"
+      ],
+      "crop": "Joint Offset Inspector"
+    },
+    {
+      "out": "deformers/check-finding.png",
+      "args": [
+        "examples/deformer-long-neck.vat",
+        "--frame",
+        "30",
+        "--select",
+        "mNeck",
+        "--window",
+        "check"
+      ],
+      "crop": "Animation Check",
+      "inset": [
+        0,
+        0,
+        0,
+        300
+      ]
+    },
+    {
+      "out": "deformers/export-deformer.png",
+      "args": [
+        "examples/deformer-held.vat",
+        "--window",
+        "export"
+      ],
+      "crop": "Export SL .anim",
+      "inset": [
+        0,
+        404,
+        0,
+        112
+      ]
+    }
   ]
 }

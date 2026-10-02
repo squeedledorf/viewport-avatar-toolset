@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ViewportAvatarToolset VERSION 0.1.1 LANGUAGES CXX)
+project(ViewportAvatarToolset VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +31,10 @@ target_link_libraries(vats_pose_preview PRIVATE vats::core)
 
 add_executable(vats_make_test_body tools/make_test_body.cpp)
 target_link_libraries(vats_make_test_body PRIVATE vats::core)
+add_executable(vats_rig_export tools/rig_export_cli.cpp)  # check, write and verify a rigged mesh for SL (spec 08 RG-5)
+target_link_libraries(vats_rig_export PRIVATE vats::core)
+add_executable(vats_rig_source_dae tools/rig_source_dae.cpp)  # a model's own armature and skin as compact COLLADA (08 RM)
+target_link_libraries(vats_rig_source_dae PRIVATE vats::core)
 
 add_executable(vats_picker_dump tools/picker_dump.cpp)  # posed joints and body mesh as JSON, for picker design
 target_link_libraries(vats_picker_dump PRIVATE vats::core)

@@ -213,6 +213,7 @@ TEST(lip_sync_saves_with_the_project) {
     CHECK(parse_rhubarb(read(std::string(VATS_TEST_FILES) + "/rhubarb.json"), cues, err));
     LipSync ls = lip_sync_from_cues(cues, 0, 30, 45, 0, -1);
     ls.positions = true;
+    ls.scale = 1.3;  // taking the moves back must size them as they were keyed
     ls.level = {0.5, 1};
     p.clip.lip_sync = ls;
     Project back;

@@ -20,7 +20,15 @@ add_executable(vats_tests
     test_lip_sync.cpp
     test_groups.cpp
     test_dae.cpp
+    test_bone_heat.cpp
+    test_auto_rig.cpp
+    test_weight_paint.cpp
+    test_gltf_mesh.cpp
+    test_rig_export.cpp
+    test_shape_keys.cpp
+    test_face_fit.cpp
     test_body_shape.cpp
+    test_soft_body.cpp
     test_export_name.cpp
     test_sit_export.cpp
     test_clips.cpp
@@ -37,6 +45,7 @@ add_executable(vats_tests
     test_reach.cpp
     test_gif.cpp
     test_lint.cpp
+    test_deformer.cpp
     test_self_contact.cpp
     test_community_folder.cpp
     test_loop_tools.cpp
@@ -53,9 +62,14 @@ add_executable(vats_tests
     test_batch_retarget.cpp
     test_priority_plan.cpp
     test_rig.cpp
+    test_rig_axes.cpp
+    test_rig_map.cpp
+    test_spare_chains.cpp
+    test_rig_map_humanoids.cpp
+    test_rig_constraints.cpp
     test_shape.cpp
     test_skeleton.cpp
-    test_bone_glyph.cpp
+    test_fluid_pose.cpp
     test_sl_preview.cpp
     test_retime.cpp
     test_world_reduce.cpp
@@ -67,6 +81,8 @@ add_executable(vats_tests
     test_box_select.cpp
     test_picker.cpp
     test_widgets.cpp  # ui/widgets.h, header-only parts
+    test_pie.cpp
+    ${PROJECT_SOURCE_DIR}/ui/pie.cpp
 )
 target_link_libraries(vats_tests PRIVATE vats::core)
 if(VATS_LEGACY_IMPORT)
@@ -74,7 +90,10 @@ if(VATS_LEGACY_IMPORT)
 endif()
 if(TARGET imgui)  # the shortcut overrides use ImGui's key names (ui/keymap.h); the dock layout a headless context
     target_sources(vats_tests PRIVATE test_keymap.cpp ${PROJECT_SOURCE_DIR}/ui/keymap.cpp ${PROJECT_SOURCE_DIR}/ui/settings.cpp
-                                      test_dock_layout.cpp ${PROJECT_SOURCE_DIR}/ui/dock_layout.cpp)
+                                      test_dock_layout.cpp ${PROJECT_SOURCE_DIR}/ui/dock_layout.cpp
+                                      test_workspaces.cpp ${PROJECT_SOURCE_DIR}/ui/workspaces.cpp
+                                      test_theme.cpp ${PROJECT_SOURCE_DIR}/ui/theme.cpp
+                                      test_menu_crawl.cpp ${PROJECT_SOURCE_DIR}/ui/icon_button.cpp)
     target_link_libraries(vats_tests PRIVATE imgui)
 endif()
 if(VATS_FBX)

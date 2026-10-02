@@ -68,10 +68,12 @@ TEST(expression_pack_respects_move_face_bones) {
     ExpressionPackOptions opt;  // Move face bones off
     opt.prefix = "My Face!", opt.priority = 5, opt.loop = false, opt.length = 1;
     std::vector<std::string> skipped;
-    const std::vector<PackFile> pack = expression_pack(table(), starter_expressions(), opt, &skipped);
-    // Frown and sad only move bones in the default head's table.
-    CHECK_EQ(skipped, (std::vector<std::string>{"frown", "sad"}));
-    CHECK_EQ(pack.size(), size_t(10));
+    auto list = starter_expressions();
+    list.push_back({"puffs", {{"cheekPuff", 1.0}}, {}, {}, Expression::Motion::Hold});
+    const std::vector<PackFile> pack = expression_pack(table(), list, opt, &skipped);
+    // Shapes that only move bones (cheekPuff) are skipped when positions is off.
+    CHECK_EQ(skipped, (std::vector<std::string>{"puffs"}));
+    CHECK_EQ(pack.size(), size_t(12));
     for (const PackFile& p : pack) {
         CHECK(p.name.rfind("My_Face_", 0) == 0);
         for (auto& [bone, track] : p.clip.curves) CHECK(!p.clip.has_channels(bone, kPosChannels));
@@ -81,7 +83,12 @@ TEST(expression_pack_respects_move_face_bones) {
     }
     CHECK_EQ(pack[0].clip.loop, false);
     CHECK_EQ(pack[0].clip.end_frame, 30);
-    CHECK(pack[6].name == "My_Face_blink_loop" && pack[6].clip.loop);  // it loops whatever the setting
+    CHECK(pack[8].name == "My_Face_blink_loop" && pack[8].clip.loop);  // it loops whatever the setting
+    // With Move face bones, the moves are sized for the bake shape's face, as the Face panel keys them.
+    ExpressionPackOptions big;
+    big.positions = true, big.scale = 1.3;
+    const Clip puffs = expression_clip(table(), list.back(), big);
+    CHECK_NEAR(curve_offset(puffs, "mFaceCheekLowerLeft", 10).y, 0.005 * 1.3, 1e-9);
 }
 
 TEST(expression_pack_from_a_face_pose) {

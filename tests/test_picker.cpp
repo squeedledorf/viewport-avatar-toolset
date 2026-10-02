@@ -282,3 +282,33 @@ TEST(picker_bone_labels_read_as_body_parts) {
     CHECK(picker_bone_label("mHindLimbsRoot") == "Hind Limbs Root");
     CHECK(picker_bone_label("Left Pec") == "Left Pec");
 }
+
+TEST(plain_bone_names_only_where_they_say_more) {
+    CHECK(plain_bone_name("mHipLeft") == "Left Thigh");
+    CHECK(plain_bone_name("mElbowRight") == "Right Forearm");
+    CHECK(plain_bone_name("mEyeLeft") == "Left Eye");
+    CHECK(plain_bone_name("mTail1").empty());  // "Tail 1" only respells it
+    CHECK(plain_bone_name("mSpine2").empty());
+    CHECK(plain_bone_name("PELVIS").empty());
+    CHECK(plain_bone_name("L_UPPER_ARM").empty());
+}
+
+TEST(bone_filter_best_match_is_the_named_bone_not_its_neighbours) {
+    const std::string dot = " \xc2\xb7 ";
+    // Skeleton order, as the Bones list builds it: the chain above the hit matches nothing.
+    const std::vector<std::string> head = {"mFaceForeheadLeft" + dot + "Left Forehead", "HEAD", "mHead",
+                                           "mFaceForeheadCenter" + dot + "Forehead Center"};
+    CHECK(best_filter_match(head, "Head") == 2);  // mHead, before the collision volume HEAD
+    CHECK(best_filter_match(head, "mhead") == 2);
+    CHECK(best_filter_match(head, "HEAD") == 2);
+    const std::vector<std::string> wrist = {"mWristLeft" + dot + "Left Hand", "mHandThumb1Left" + dot + "Left Thumb 1"};
+    CHECK(best_filter_match(wrist, "WristLeft") == 0);
+    // A plain name: a word starting with the text, the shorter label on a tie, the first on an equal one.
+    const std::vector<std::string> thigh = {"mHipRight" + dot + "Right Thigh", "mHipLeft" + dot + "Left Thigh",
+                                            "R_UPPER_LEG"};
+    CHECK(best_filter_match(thigh, "thigh") == 1);
+    CHECK(best_filter_match(thigh, "left") == 1);
+    CHECK(best_filter_match(thigh, "upper") == 2);
+    CHECK(best_filter_match(thigh, "") == -1);
+    CHECK(best_filter_match(thigh, "tail") == -1);
+}

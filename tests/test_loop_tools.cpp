@@ -110,3 +110,27 @@ TEST(onion_frames_every_and_keyed) {
     CHECK_EQ(f.size(), size_t(2));
     CHECK(f[0].frame == 0 && f[1].frame == 25);
 }
+
+// User test: in a loop the ghosts stopped at its ends, where the seam needs them most. Looping, they wrap round the
+// loop as it plays (Loop out is Loop in's pose, so a ghost past it starts after Loop in); outside the loop they stop.
+TEST(onion_frames_wrap_round_a_loop) {
+    Clip c = walk();
+    c.loop = true, c.loop_in = 0, c.loop_out = 30;
+    OnionSettings s;
+    s.before = 2, s.after = 2, s.step = 3;
+    auto f = onion_frames(c, 29, s);
+    CHECK_EQ(f.size(), size_t(4));
+    CHECK(f[0].frame == 26 && f[1].frame == 23 && f[2].frame == 2 && f[3].frame == 5);
+    f = onion_frames(c, 1, s);
+    CHECK(f[0].frame == 28 && f[1].frame == 25 && f[2].frame == 4);
+    c.loop_in = 10;  // frame 1 is before the loop: no wrapping
+    CHECK_EQ(onion_frames(c, 1, s).size(), size_t(2));
+
+    Clip sparse;  // keys at 0, 12 and 25 of a 0..30 loop
+    sparse.end_frame = 30, sparse.loop = true, sparse.loop_in = 0, sparse.loop_out = 30;
+    key_euler(sparse, "mHead", 0, {}), key_euler(sparse, "mHead", 12, {}), key_euler(sparse, "mHead", 25, {});
+    s.keyed_only = true;
+    f = onion_frames(sparse, 27, s);  // after it: the seam (30, the pose of 0), then 12 round the loop
+    CHECK_EQ(f.size(), size_t(4));
+    CHECK(f[0].frame == 25 && f[1].frame == 12 && f[2].frame == 30 && f[3].frame == 12);
+}

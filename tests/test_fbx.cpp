@@ -1,6 +1,7 @@
 // FBX import tests (spec 07 RT-2.3, 08 BD-1). The FBX files are written here as ASCII FBX 7.4, since
 // ufbx only reads.
 #include <cmath>
+#include <map>
 #include <sstream>
 
 #include "check.h"
@@ -247,6 +248,55 @@ TEST(fbx_skinned_mesh_maps_weights_and_binds) {
     }
 }
 
+// Spec 08 SK-1/SK-2: two mesh nodes are two parts, named by their models; a BlendShape channel is a shape key, with its
+// position and normal offsets and DeformPercent as its value. Z up, metres, static.
+TEST(fbx_mesh_nodes_are_parts_and_blend_shapes_are_shape_keys) {
+    std::ostringstream o;
+    o << header(2, 100) << "Objects:  {\n";
+    for (int k = 0; k < 2; ++k)
+        o << "\tGeometry: " << 100 + k * 10 << ", \"Geometry::g" << k << "\", \"Mesh\" {\n\t\tVertices: "
+          << list(std::vector<double>{0, 0, double(k), 1, 0, double(k), 0, 1, double(k)})
+          << "\n\t\tPolygonVertexIndex: *3 { a: 0,1,-3 }\n\t\tLayerElementNormal: 0 {\n\t\t\tMappingInformationType: \"ByPolygonVertex\"\n"
+          << "\t\t\tReferenceInformationType: \"Direct\"\n\t\t\tNormals: " << list(std::vector<double>{0, 0, 1, 0, 0, 1, 0, 0, 1})
+          << "\n\t\t}\n\t\tLayer: 0 {\n\t\t\tLayerElement:  {\n\t\t\t\tType: \"LayerElementNormal\"\n\t\t\t\tTypedIndex: 0\n\t\t\t}\n\t\t}\n\t}\n"
+          << "\tModel: " << 101 + k * 10 << ", \"Model::" << (k ? "Hat" : "Head") << "\", \"Mesh\" {\n\t\tVersion: 232\n\t}\n";
+    // Head's "Blink": vertex 2 down 0.5 m, its normal tipped forward; on at 40 %.
+    o << "\tGeometry: 400, \"Geometry::Blink\", \"Shape\" {\n\t\tVersion: 100\n\t\tIndexes: *1 { a: 2 }\n\t\tVertices: "
+      << list(std::vector<double>{0, 0, -0.5}) << "\n\t\tNormals: " << list(std::vector<double>{1, 0, 0}) << "\n\t}\n"
+      << "\tDeformer: 500, \"Deformer::Morpher\", \"BlendShape\" {\n\t\tVersion: 100\n\t}\n"
+      << "\tDeformer: 501, \"SubDeformer::Blink\", \"BlendShapeChannel\" {\n\t\tVersion: 100\n\t\tDeformPercent: 40\n"
+      << "\t\tFullWeights: *1 { a: 100 }\n\t}\n}\nConnections:  {\n"
+      << "\tC: \"OO\",101,0\n\tC: \"OO\",100,101\n\tC: \"OO\",111,0\n\tC: \"OO\",110,111\n"
+      << "\tC: \"OO\",500,100\n\tC: \"OO\",501,500\n\tC: \"OO\",400,501\n}\n";
+    DaeModel m;
+    DaeReport rep;
+    std::string err;
+    CHECK(load_fbx_mesh(bytes(o.str()), "", skel(), m, rep, err));
+    CHECK_EQ(err, std::string());
+    CHECK_EQ(m.parts.size(), size_t(2));
+    if (m.parts.size() != 2) return;
+    CHECK(m.parts[0].name == "Head" && m.parts[0].first_vertex == 0 && m.parts[0].vertex_count == 3 && m.parts[0].index_count == 3);
+    CHECK(m.parts[1].name == "Hat" && m.parts[1].first_vertex == 3 && m.parts[1].vertex_count == 3 && m.parts[1].first_index == 3);
+    CHECK_EQ(m.shape_keys.size(), size_t(1));
+    if (m.shape_keys.size() != 1) return;
+    const DaeShapeKey& k = m.shape_keys[0];
+    CHECK_EQ(k.name, std::string("Blink"));
+    CHECK_NEAR(k.initial, 0.4, 1e-9);
+    CHECK_EQ(k.vertices.size(), size_t(1));
+    const std::uint32_t v = k.vertices[0];
+    CHECK(v < 3);
+    CHECK((Vec3{k.dpos[0], k.dpos[1], k.dpos[2]} - Vec3{0, 0, -0.5}).length() < 1e-6);
+    CHECK(k.dnrm.size() == 3 && std::fabs(k.dnrm[0] - 1) < 1e-6);
+    // Hidden Hat, Blink at 1: Head alone, its vertex the whole way down, its normal half way to forward.
+    MeshLook look;
+    look.hidden = {"Hat"};
+    look.keys["Blink"] = 1;
+    const DaeModel s = shown_model(m, look);
+    CHECK_EQ(s.vertex_count(), 3);
+    CHECK_NEAR(s.positions[v * 3 + 2], m.positions[v * 3 + 2] - 0.5, 1e-6);
+    CHECK((Vec3{s.normals[v * 3], s.normals[v * 3 + 1], s.normals[v * 3 + 2]} - Vec3{1, 0, 1}.normalized()).length() < 1e-5);
+}
+
 // A 2000-level chain of nodes used to overflow the stack in the recursive tree walk; ufbx now stops at
 // its depth limit and the reader reports an error.
 TEST(fbx_deep_hierarchy_is_refused) {
@@ -308,4 +358,32 @@ TEST(fbx_blender_convention_skins_in_sl_axes) {
         Vec3 want = rest[shoulder].pos + q.rotate(bind - rest[shoulder].pos);
         CHECK((Vec3{p[v * 3], p[v * 3 + 1], p[v * 3 + 2]} - want).length() < 1e-4);
     }
+}
+
+// Spec 08 RM-1: the file's own armature, and a remap that maps it onto SL by hand gives what the SL names give: the
+// same rig, read as foreign bones, turned a quarter to face +X (Blender's -Y) by the remap instead of by settle_rig.
+TEST(fbx_reports_its_armature_and_loads_through_a_remap) {
+    const Skeleton& s = skel();
+    const std::string path = std::string(VATS_TEST_FILES) + "/blender_rig.fbx";
+    DaeModel named, m;
+    DaeReport rn, r;
+    std::string err;
+    CHECK(load_mesh_file_as_is(path, s, named, rn, err));
+    std::map<std::string, int> index;
+    for (size_t i = 0; i < rn.bones.size(); ++i) index[rn.bones[i].name] = int(i);
+    CHECK(index.count("mPelvis") && index.count("mElbowLeft") && index.count("mHead"));
+    SkinRemap remap;
+    remap.turn = 1;
+    for (const SourceBone& b : rn.bones) {
+        if (const int j = s.find(b.name); j >= 0 && b.skinned) remap.joints[b.name] = j, remap.binds[j] = b.bind;
+        if (b.name == "mElbowLeft") CHECK(b.parent == index["mShoulderLeft"]);
+    }
+    CHECK(load_mesh_file_as_is(path, s, m, r, err, &remap));
+    CHECK(m.rigged && r.remapped && named.turn_binds == 1 && named.turn_vertices == 1);
+    CHECK(m.vertex_count() == named.vertex_count());
+    double worst = 0;
+    for (size_t i = 0; i < m.positions.size() && i < named.positions.size(); ++i)
+        worst = std::max(worst, double(std::fabs(m.positions[i] - named.positions[i])));
+    CHECK(worst < 1e-5);
+    for (const auto& [name, j] : remap.joints) CHECK((m.binds[j].pos - named.binds[j].pos).length() < 1e-5);
 }

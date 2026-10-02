@@ -18,7 +18,9 @@
 # to docs/wiki. crop is optional: a window's name as its title bar shows it (--shot-rect), or [x, y, w, h] in
 # the window's pixels. With a named crop, "inset": [x, y, w, h] takes that part of the window instead (w or h
 # 0 = to its edge). The app runs with a fake firewall state and network address (VATS_FAKE_FIREWALL,
-# VATS_FAKE_LAN), so a shot never shows this computer's. Needs Xvfb, xdotool, python3, and Pillow or ImageMagick.
+# VATS_FAKE_LAN), so a shot never shows this computer's. "body": [vats_make_test_body options] writes a test body
+# first and puts its parts (head, upper, lower, or "body_parts" in that order) in place of $BODY in args. Needs
+# Xvfb, xdotool, python3, and Pillow or ImageMagick.
 set -euo pipefail
 VATS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WIKI="$VATS/docs/wiki"
@@ -39,7 +41,7 @@ ready=
 for _ in $(seq 100); do DISPLAY=":$n" xdotool getdisplaygeometry >/dev/null 2>&1 && ready=1 && break; sleep 0.1; done
 [[ -n "$ready" ]] || { echo "Xvfb did not start on :$n" >&2; exit 1; }
 
-DISPLAY=":$n" BIN="$BIN" WIKI="$WIKI" WORK="$work" FILTER="${1:-}" OPT="$VATS/tools/optimize-wiki-images.sh" python3 - <<'PY'
+DISPLAY=":$n" BIN="$BIN" VATS="$VATS" WIKI="$WIKI" WORK="$work" FILTER="${1:-}" OPT="$VATS/tools/optimize-wiki-images.sh" python3 - <<'PY'
 import fnmatch, json, os, re, shutil, subprocess, sys
 
 wiki, work = os.environ["WIKI"], os.environ["WORK"]
@@ -71,7 +73,15 @@ for i, shot in enumerate(manifest["shots"]):
     matched += 1
     theme, size = shot.get("theme", defaults.get("theme", "Dusk")), shot.get("size", defaults.get("size", "1200x1000"))
     raw, data = os.path.join(work, f"{i}.png"), os.path.join(work, f"data{i}")
-    cmd = [os.environ["BIN"], "--data-dir", data, "--size", size, "--theme", theme, *shot.get("args", [])]
+    args = list(shot.get("args", []))
+    if body := shot.get("body"):  # a test body from vats_make_test_body (its options), as $BODY in args: "a.dae,b.dae,c.dae"
+        tool = os.path.join(os.path.dirname(os.path.dirname(os.environ["BIN"])), "vats_make_test_body")
+        bdir = os.path.join(work, f"body{i}")
+        os.makedirs(bdir, exist_ok=True)
+        subprocess.run([tool, os.path.join(os.environ["VATS"], "data", "character"), bdir, *body], check=True, capture_output=True)
+        parts = ",".join(os.path.join(bdir, f) for f in shot.get("body_parts", ("head.dae", "upper.dae", "lower.dae")))
+        args = [a.replace("$BODY", parts) for a in args]
+    cmd = [os.environ["BIN"], "--data-dir", data, "--size", size, "--theme", theme, *args]
     c = shot.get("crop")
     if isinstance(c, str):
         cmd += ["--shot-rect", c]

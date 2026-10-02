@@ -69,7 +69,7 @@ void rot(Clip& c, const char* bone, int axis, std::initializer_list<std::pair<in
 TEST(lint_reference_is_clean) {
     const auto fs = lint_clip(skel(), reference(), {});
     for (auto& f : fs) check::fail(__FILE__, __LINE__, f.rule + ": " + f.message);
-    CHECK(lint_rules().size() == 20);
+    CHECK(lint_rules().size() == 23);
 }
 
 // The AO plays its own stands, walks, runs and turns in place of each other: a clip with such an AO state is not
@@ -155,12 +155,119 @@ TEST(lint_ao_priority) {
     broken("ao_priority", c);
 }
 
+// The loops below move positions mid-loop and come with an undeformer, so position_ends_moved stays quiet.
+static Clip undeformed(Clip c) {
+    c.export_settings.set("undeformer", true);
+    return c;
+}
+
 TEST(lint_hover_pop) {
-    Clip c = reference();
+    Clip c = undeformed(reference());
     key_offset(c, "mKneeLeft", 0, {});
     key_offset(c, "mKneeLeft", 15, {0, 0.05, 0});
     key_offset(c, "mKneeLeft", 30, {});
     broken("hover_pop", c);
+    // Spec 09 0l: SL's height never reads mSpine1 (LLAvatarAppearance::computeBodySize), and it is not in the leg:
+    // lifting it makes the body longer above the hip without popping the avatar up or down. No finding at all.
+    Clip spine = undeformed(reference());
+    key_offset(spine, "mSpine1", 0, {});
+    key_offset(spine, "mSpine1", 15, {0, 0, 0.05});
+    key_offset(spine, "mSpine1", 30, {});
+    CHECK(rules(lint_clip(skel(), spine, {})).empty());
+    bool written = false;
+    for (const AnimJoint& j : export_anim(skel(), spine, {}).file.joints) written = written || (j.name == "mSpine1" && !j.pos.empty());
+    CHECK(written);
+    // The right leg changes the leg length too (both legs stand the avatar), though SL's height reads only the left.
+    Clip right = undeformed(reference());
+    key_offset(right, "mKneeRight", 0, {});
+    key_offset(right, "mKneeRight", 15, {0, 0.05, 0});
+    key_offset(right, "mKneeRight", 30, {});
+    broken("hover_pop", right);
+}
+
+// Spec 09 build 35: a neck-stretch deformer. Every SL viewer takes the avatar's height from the neck and head
+// positions, animated ones too, and stands it half the growth lower: 50 cm taller sinks the wearer 25 cm. The check
+// says so with the hover to set; its Fix, Hold Without Sinking (09 0l), counter-keys mSkull and clears it.
+TEST(lint_body_height_neck_stretch) {
+    Clip c = reference();
+    key_offset(c, "mNeck", 0, {0, 0, 0.30});
+    key_offset(c, "mNeck", 30, {0, 0, 0.30});
+    key_offset(c, "mHead", 0, {0, 0, 0.20});
+    key_offset(c, "mHead", 30, {0, 0, 0.20});
+    const auto fs = lint_clip(skel(), c, {});
+    CHECK(rules(fs) == std::set<std::string>{"body_height"});
+    for (auto& f : fs) {
+        CHECK(f.message.find("up to 50.0 cm taller") != std::string::npos);
+        CHECK(f.message.find("25.0 cm") != std::string::npos);
+        CHECK(f.fix.label == "Hold Without Sinking (mSkull, head scale 1)");  // no bake shape
+        CHECK(f.frames.size() == 31);
+        CHECK(f.message.find("move the spine bones up") == std::string::npos);  // no torso or chest: no spine hint
+    }
+    broken("body_height", c);
+    // The export options instead of the fix: Hold without sinking clears it; End at rest makes it only while it plays.
+    Clip held = c;
+    held.export_settings = Json::object();
+    held.export_settings.set("hold_no_sink", true);
+    CHECK(!rules(lint_clip(skel(), held, {})).count("body_height"));
+    Clip rests = c;
+    rests.loop = false;
+    rests.export_settings = Json::object();
+    rests.export_settings.set("end_at_rest", true);
+    int ends = 0;
+    for (auto& f : lint_clip(skel(), rests, {})) ends += f.rule == "body_height" && f.message.find("only while it plays") != std::string::npos;
+    CHECK(ends == 1);
+    CHECK(fs.size() == 1 && fs[0].message.find("lasts after it stops") != std::string::npos);
+    // Back at rest on the last frame: only while it plays.
+    Clip back = c;
+    key_offset(back, "mNeck", 30, {});
+    key_offset(back, "mHead", 30, {});
+    back.loop = false;  // not a seam: a stretch that plays and lets go
+    int seen = 0;
+    for (auto& f : lint_clip(skel(), back, {}))
+        if (f.rule == "body_height") seen += f.message.find("only while it plays") != std::string::npos;
+    CHECK(seen == 1);
+    // The export writes no hip key for it: mPelvis carries no position at all.
+    const AnimExportResult r = export_anim(skel(), c, {});
+    for (const AnimJoint& j : r.file.joints) CHECK(j.name != "mPelvis" || j.pos.empty());
+    // Sideways (no height) or on a bone SL's height ignores (mSpine3): no finding.
+    Clip side = reference();
+    key_offset(side, "mNeck", 0, {0.30, 0, 0});
+    key_offset(side, "mNeck", 30, {0.30, 0, 0});
+    CHECK(!rules(lint_clip(skel(), side, {})).count("body_height"));
+    Clip spine = reference();
+    key_offset(spine, "mSpine3", 0, {0, 0, 0.30});
+    key_offset(spine, "mSpine3", 30, {0, 0, 0.30});
+    CHECK(!rules(lint_clip(skel(), spine, {})).count("body_height"));
+}
+
+// Spec 09 0l, the spine hint: a taller torso built on mTorso or mChest sinks the wearer, the same body built on the
+// spine bones (which SL's height never reads) does not. The body_height finding says so when mTorso or mChest carry
+// the growth; an mSpine2 stretch has no finding at all.
+TEST(lint_body_height_spine_hint) {
+    Clip torso = reference();
+    key_offset(torso, "mTorso", 0, {0, 0, 0.20});
+    key_offset(torso, "mTorso", 30, {0, 0, 0.20});
+    int hints = 0;
+    for (auto& f : lint_clip(skel(), torso, {}))
+        if (f.rule == "body_height") {
+            CHECK(f.message.find("20.0 cm taller") != std::string::npos);
+            hints += f.message.find("move the spine bones up instead of mTorso and mChest") != std::string::npos &&
+                     f.message.find("never reads them") != std::string::npos;
+        }
+    CHECK(hints == 1);
+    Clip chest = reference();
+    key_offset(chest, "mChest", 0, {0, 0, 0.10});
+    int chest_hints = 0;
+    for (auto& f : lint_clip(skel(), chest, {}))
+        chest_hints += f.rule == "body_height" && f.message.find("move the spine bones up") != std::string::npos;
+    CHECK(chest_hints == 1);
+    Clip spine = reference();
+    key_offset(spine, "mSpine2", 0, {0, 0, 0.20});
+    key_offset(spine, "mSpine2", 30, {0, 0, 0.20});
+    for (auto& f : lint_clip(skel(), spine, {})) {
+        CHECK(f.rule != "body_height");
+        CHECK(f.message.find("spine bones") == std::string::npos);
+    }
 }
 
 TEST(lint_frozen_bones) {
@@ -171,7 +278,7 @@ TEST(lint_frozen_bones) {
 }
 
 TEST(lint_face_positions) {
-    Clip c = reference();
+    Clip c = undeformed(reference());
     key_offset(c, "mFaceLipCornerLeft", 0, {});
     key_offset(c, "mFaceLipCornerLeft", 15, {0, 0.005, 0});
     key_offset(c, "mFaceLipCornerLeft", 30, {});
@@ -324,4 +431,126 @@ TEST(lint_goto_frame_steps_through_runs) {
     CHECK(lint_goto_frame(two, 25) == 3);
     CHECK(lint_frame_runs(two) == 2);
     CHECK(lint_goto_frame({}, 0) == -1);
+}
+
+TEST(lint_position_ends_moved) {
+    Clip c = reference();
+    c.loop = false;
+    key_offset(c, "mWristLeft", 0, {});
+    key_offset(c, "mWristLeft", 30, {0.05, 0, 0});
+    const auto fs = lint_clip(skel(), c, {});
+    bool found = false;
+    for (const auto& f : fs) {
+        if (f.rule == "position_ends_moved") {
+            found = true;
+            CHECK((f.bones == std::vector<std::string>{"mWristLeft"}));
+            CHECK(f.message == "1 joint ends moved by position; the next animation inherits it unless it keys its position");
+        }
+    }
+    CHECK(found);
+
+    // Check 1 finds exactly the joints left moved.
+    Clip c2 = c;
+    key_offset(c2, "mWristRight", 0, {});
+    key_offset(c2, "mWristRight", 30, {0.05, 0, 0});
+    for (const auto& f : lint_clip(skel(), c2, {})) {
+        if (f.rule == "position_ends_moved") {
+            CHECK((f.bones == std::vector<std::string>{"mWristLeft", "mWristRight"}));
+            CHECK(f.message == "2 joints end moved by position; the next animation inherits them unless it keys their positions");
+        }
+    }
+
+    // Pelvis ending moved does not trigger position_ends_moved
+    Clip pel = reference();
+    pel.loop = false;
+    key_offset(pel, "mPelvis", 30, {0, 0, 0.5});
+    CHECK(!rules(lint_clip(skel(), pel, {})).count("position_ends_moved"));
+
+    // broken() verifies that the fix ("End at Rest") clears the rule
+    broken("position_ends_moved", c);
+
+    // Under one .anim position step (0.15 mm) off rest is written as rest: not flagged.
+    Clip tiny = reference();
+    tiny.loop = false;
+    key_offset(tiny, "mWristLeft", 0, {});
+    key_offset(tiny, "mWristLeft", 30, {0.0001, 0, 0});
+    CHECK(!rules(lint_clip(skel(), tiny, {}, {})).count("position_ends_moved"));
+
+    // A loop that ends at rest but moves a position in between: it can be stopped anywhere, so it is flagged, and
+    // End at Rest is not offered (it would play only if the loop ran to its end); the undeformer is.
+    Clip loop = reference();
+    key_offset(loop, "mWristLeft", 0, {});
+    key_offset(loop, "mWristLeft", 15, {0.05, 0, 0});
+    key_offset(loop, "mWristLeft", 30, {});
+    bool flagged = false;
+    for (const auto& f : lint_clip(skel(), loop, {}))
+        if (f.rule == "position_ends_moved") {
+            flagged = true;
+            CHECK((f.bones == std::vector<std::string>{"mWristLeft"}));
+            CHECK(f.fix.label == "Also Export an Undeformer");
+        }
+    CHECK(flagged);
+    broken("position_ends_moved", loop);
+}
+
+TEST(lint_position_leftovers) {
+    Clip c = reference();
+    c.loop = false;
+    // c keys rotation on mWristLeft, but not position
+    key_euler(c, "mWristLeft", 0, {10, 0, 0});
+
+    // other clip moves mWristLeft by position
+    Clip other = reference();
+    key_offset(other, "mWristLeft", 0, {0.02, 0, 0});
+    key_offset(other, "mWristLeft", 30, {0.02, 0, 0});
+
+    const auto fs = lint_clip(skel(), c, {}, {}, nullptr, "", {}, {&other});
+    bool found = false;
+    for (const auto& f : fs) {
+        if (f.rule == "position_leftovers") {
+            found = true;
+            CHECK((f.bones == std::vector<std::string>{"mWristLeft"}));
+            CHECK(f.message == "mWristLeft keys rotation but not position; other clips move it by position, so it will inherit leftovers");
+            CHECK(f.fix.label == "Reset Joint Positions");
+            CHECK(bool(f.fix.apply));
+        }
+    }
+    CHECK(found);
+
+    // Applying fix enables reset_positions and clears the finding
+    Clip fixed = c;
+    for (const auto& f : fs) {
+        if (f.rule == "position_leftovers" && f.fix.apply) f.fix.apply(fixed);
+    }
+    CHECK(!rules(lint_clip(skel(), fixed, {}, {}, nullptr, "", {}, {&other})).count("position_leftovers"));
+
+    // A position keyed at rest is left out of the file (IO-11a), so it still inherits leftovers.
+    Clip c_at_rest = c;
+    key_offset(c_at_rest, "mWristLeft", 0, {});
+    CHECK(rules(lint_clip(skel(), c_at_rest, {}, {}, nullptr, "", {}, {&other})).count("position_leftovers"));
+    // A position it moves is written, which replaces the leftover: no warning.
+    Clip c_with_pos = c;
+    key_offset(c_with_pos, "mWristLeft", 0, {});
+    key_offset(c_with_pos, "mWristLeft", 15, {0.01, 0, 0});
+    CHECK(!rules(lint_clip(skel(), c_with_pos, {}, {}, nullptr, "", {}, {&other})).count("position_leftovers"));
+
+    // Reset on, but picking other joints: mWristLeft still inherits, and the fix resets the joints the clip turns.
+    Clip picked = c;
+    picked.export_settings.set("reset_positions", true);
+    picked.export_settings.set("reset_positions_mode", "pick");
+    Json elbow = Json::array();
+    elbow.push("mElbowLeft");
+    picked.export_settings.set("reset_positions_joints", elbow);
+    bool still = false;
+    for (const auto& f : lint_clip(skel(), picked, {}, {}, nullptr, "", {}, {&other}))
+        if (f.rule == "position_leftovers") {
+            still = true;
+            f.fix.apply(picked);
+        }
+    CHECK(still);
+    CHECK(!rules(lint_clip(skel(), picked, {}, {}, nullptr, "", {}, {&other})).count("position_leftovers"));
+
+    // If other clips don't move mWristLeft by position, no leftover warning
+    Clip clean_other = reference();
+    CHECK(!rules(lint_clip(skel(), c, {}, {}, nullptr, "", {}, {&clean_other})).count("position_leftovers"));
 }

@@ -137,12 +137,22 @@ TEST(dae_map_skin_joint) {
     CHECK_EQ(map_skin_joint(s, "Armature_mChest"), s.find("mChest"));     // '_' prefix
     CHECK_EQ(map_skin_joint(s, "rig:mNeck"), s.find("mNeck"));            // ns: prefix
     CHECK_EQ(map_skin_joint(s, "a|b|mHead"), s.find("mHead"));            // a|b prefix
-    // Step 1 upper-cases before SK-7, so "Chest" is the CHEST volume, not the attachment point.
-    CHECK_EQ(map_skin_joint(s, "Chest"), dae_volume(s, s.find_volume("CHEST")));
+    // Names match exactly, as the viewer's uploader matches them: "Chest" is the attachment point, not the CHEST volume.
+    CHECK_EQ(map_skin_joint(s, "Chest"), s.find("Chest"));
     CHECK_EQ(map_skin_joint(s, "Left Hand"), s.find("Left Hand"));        // attachment points map too
+    CHECK_EQ(map_skin_joint(s, "Left_Hand"), s.find("Left Hand"));
     CHECK_EQ(map_skin_joint(s, "BELLY"), dae_volume(s, s.find_volume("BELLY")));
     CHECK_EQ(map_skin_joint(s, "x:BELLY"), dae_volume(s, s.find_volume("BELLY")));
-    CHECK_EQ(map_skin_joint(s, "belly"), dae_volume(s, s.find_volume("BELLY")));
+    bool loose = false;
+    CHECK_EQ(map_skin_joint(s, "lThigh", &loose), s.find("mHipLeft"));  // LL's alias, exact
+    CHECK(!loose);
+    // Any other case is read too, but the viewer would not read it: loose, for a warning, and not SL-named.
+    CHECK_EQ(map_skin_joint(s, "belly", &loose), dae_volume(s, s.find_volume("BELLY")));
+    CHECK(loose);
+    CHECK_EQ(map_skin_joint(s, "Head", &loose), dae_volume(s, s.find_volume("HEAD")));
+    CHECK(loose && viewer_skin_joint(s, "Head") < 0 && viewer_skin_joint(s, "L_Hand") < 0);
+    CHECK_EQ(map_skin_joint(s, "mpelvis", &loose), s.find("mPelvis"));
+    CHECK(loose);
     CHECK_EQ(map_skin_joint(s, "L_UPPER_ARM"), dae_volume(s, s.find_volume("L_UPPER_ARM")));
     CHECK_EQ(map_skin_joint(s, "PELVIS"), dae_volume(s, s.find_volume("PELVIS")));  // volume before SK-7
     CHECK_EQ(map_skin_joint(s, "mRoot"), dae_root(s));

@@ -1,6 +1,7 @@
 // The user's own shortcuts over a preset (ui/keymap.h) and their place in settings.json.
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 
 #include "check.h"
 #include "keymap.h"
@@ -93,4 +94,80 @@ TEST(keymap_offered_presets) {
     CHECK(app.size() == 4 && app.front() == Preset::Industry && app.back() == Preset::SecondLife);
     CHECK(viewer.size() == 1 && viewer[0] == Preset::SecondLife);  // one preset: Preferences shows no picker
     CHECK(std::string(preset_label(Preset::SecondLife)) == "Second Life");
+}
+
+TEST(settings_bone_style_glyph_loads_as_stick) {
+    const std::string file = (std::filesystem::temp_directory_path() / "vats_bone_style_test.json").string();
+    {
+        std::ofstream f(file, std::ios::trunc);
+        f << "{\"bone_style\": \"glyph\"}\n";
+    }
+    Settings s;
+    s.load(file);
+    CHECK(s.bone_style == "stick");
+
+    {
+        std::ofstream f(file, std::ios::trunc);
+        f << "{\"bone_style\": \"hidden\"}\n";
+    }
+    Settings h;
+    h.load(file);
+    CHECK(h.bone_style == "hidden");
+
+    {
+        std::ofstream f(file, std::ios::trunc);
+        f << "{\"bone_style\": \"stick\"}\n";
+    }
+    Settings st;
+    st.load(file);
+    CHECK(st.bone_style == "stick");
+
+    {
+        std::ofstream f(file, std::ios::trunc);
+        f << "{\"bone_style\": \"unknown_style\"}\n";
+    }
+    Settings un;
+    un.load(file);
+    CHECK(un.bone_style.empty());
+
+    std::remove(file.c_str());
+}
+
+TEST(settings_default_preset) {
+    // 1. Fresh settings defaults to Second Life
+    Settings fresh;
+    CHECK(fresh.preset == Preset::SecondLife);
+
+    // 2. Loading nonexistent file preserves Second Life
+    fresh.load("/nonexistent_path/settings.json");
+    CHECK(fresh.preset == Preset::SecondLife);
+
+    // 3. Existing settings file with no preset key preserves Industry
+    const std::string file = (std::filesystem::temp_directory_path() / "vats_preset_test.json").string();
+    {
+        std::ofstream f(file, std::ios::trunc);
+        f << "{\"theme\": \"Dusk\"}\n";
+    }
+    Settings old_cfg;
+    old_cfg.load(file);
+    CHECK(old_cfg.preset == Preset::Industry);
+
+    // 4. Existing file with explicit preset loads that preset
+    {
+        std::ofstream f(file, std::ios::trunc);
+        f << "{\"preset\": \"blender\"}\n";
+    }
+    Settings blender_cfg;
+    blender_cfg.load(file);
+    CHECK(blender_cfg.preset == Preset::Blender);
+
+    {
+        std::ofstream f(file, std::ios::trunc);
+        f << "{\"preset\": \"secondlife\"}\n";
+    }
+    Settings sl_cfg;
+    sl_cfg.load(file);
+    CHECK(sl_cfg.preset == Preset::SecondLife);
+
+    std::remove(file.c_str());
 }

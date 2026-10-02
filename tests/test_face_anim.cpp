@@ -69,11 +69,11 @@ TEST(face_sliders_key_bones_and_read_back) {
     CHECK_NEAR(back.at("browInnerUp"), 0.7, 0.02);
     // Move face bones off: no position keys, and a shape that only moves bones has nothing to read back.
     Clip r;
-    key_face_weights(r, table(), {{"browInnerUp", 1.0}, {"jawOpen", 0.5}}, false, 0);
+    key_face_weights(r, table(), {{"cheekPuff", 1.0}, {"jawOpen", 0.5}}, false, 0);
     for (auto& [track, channels] : r.curves) CHECK(!channels.count("pos_x"));
-    CHECK(!face_shape_keys(table(), "browInnerUp", false));
-    CHECK(face_shape_keys(table(), "browInnerUp", true));
-    CHECK_NEAR(read_face_weights(r, table(), 0, false).at("browInnerUp"), 0.0, 1e-9);
+    CHECK(!face_shape_keys(table(), "cheekPuff", false));
+    CHECK(face_shape_keys(table(), "cheekPuff", true));
+    CHECK_NEAR(read_face_weights(r, table(), 0, false).at("cheekPuff"), 0.0, 1e-9);
     CHECK_NEAR(read_face_weights(r, table(), 0, false).at("jawOpen"), 0.5, 0.02);
     // A VRM preset expands into its shapes and reads back as them.
     Clip j;

@@ -10,7 +10,7 @@ Pose and animate Second Life's Bento avatar on a timeline, then export a `.anim`
 
 ## What it is
 
-Viewport Avatar Toolset (VATs) is a free, open-source animation editor for Second Life avatars. You pose the full Bento skeleton (133 joints, 47 attachment points and 26 collision volumes) on a timeline, preview the result on the Linden avatar or on a mesh body from a devkit, and export a `.anim` file written the way the viewer writes its own, or a BVH file for other tools. Motion can also come in from BVH, glTF and FBX files made for other rigs, or live from motion-capture apps over your local network. VATs runs on Linux and Windows and is licensed under the LGPL-2.1.
+Viewport Avatar Toolset (VATs) is a free, open-source animation editor for Second Life avatars. You pose the full Bento skeleton (133 joints, 47 attachment points and 26 collision volumes) on a timeline, preview the result on the Linden avatar or on a mesh body from a devkit, and export a `.anim` file written the way the viewer writes its own, or a BVH file for other tools. Motion can also come in from BVH, glTF and FBX files made for other rigs, or live from motion-capture apps over your local network. VATs also rigs models for Second Life: it maps a character's own skeleton onto SL's, or rigs a model with none, and writes the rigged `.dae` the mesh uploader takes. VATs runs on Linux and Windows and is licensed under the LGPL-2.1.
 
 The same editor also runs inside the [SoapStorm](https://github.com/soapyf/soapstorm) viewer, on your own avatar in-world: see [In Second Life](#in-second-life) below and the [Releases page](https://github.com/squeedledorf/viewport-avatar-toolset/releases).
 
@@ -18,8 +18,9 @@ VATs is original software. It was inspired by the work being done on [Hexton Sec
 
 ## Highlights
 
-- **Posing that keys itself.** Rotate, move and scale gizmos with local, world and gimbal axes; every move is a key on the current frame. Type exact degrees and metres in the Properties panel, mirror live to the other side, try a scratch pose before keying it, or pick bones on an outline of the body.
+- **Posing that keys itself.** Drag a hand, a foot or any part of the body and the bones above it follow (Auto IK); drag the hips and the feet stay planted. Rotate, move and scale gizmos with local, world and gimbal axes; every move is a key on the current frame. Type exact degrees and metres in the Properties panel, mirror live to the other side, try a scratch pose before keying it, or pick bones on an outline of the body.
 - **IK on every limb.** Arms, legs, fingers, spine, hind legs and wings, each switchable between IK and FK at any frame without a jump, with pole targets for elbows and knees. A hand target dragged out of reach can lean the spine and pull the hips after it.
+- **Joint limits.** The gizmo, IK and body drags stop each limited joint where the body can go, so a knee never bends backwards. Limits are suggested for your body, reviewed joint by joint and edited with handles in the view.
 - **Pins.** Hold a hand, foot or attachment point still in the world, or bind it to another bone so a glass passes from hand to hand or both hands stay on a grip. Pins drive limbs through IK and are baked to plain keys on export.
 - **Timeline, graph editor and dope sheet.** Loop and ease markers, frame ranges, a tween slider for breakdowns, blocking with stepped keys and key tags, and curves with six tangent types, easing presets, box select, scaling, an Euler filter and time and value flips. The dope sheet retimes keys across many bones at once; motion paths draw the arc a bone travels.
 - **Loop and time tools.** Find the best loop points, close the seam, fit a loop to the beat, take the travel out of a walk (or put it back at a set speed) and check it on a treadmill; retime with markers dragged on the ruler; split a long dance at the beats into parts under 60 seconds.
@@ -29,11 +30,12 @@ VATs is original software. It was inspired by the work being done on [Hexton Sec
 - **Dynamics, ragdoll and layers.** Spring chains for tails, ears and hair, jiggle on collision volumes, a ragdoll for the whole body or selected limbs, an idle layer of loop-safe breathing and sway, and overlap that gives a keyed chain follow-through, all baked into keys.
 - **Balance.** The centre of mass drawn over the feet's support polygon, red when the pose would topple; Auto-Balance moves the hips back over the feet across a range, and Jump Arc keys the hips on a free-fall parabola.
 - **Couples, groups and AO sets.** Several actors in one project on one shared timeline, each with its own body and placement; bind one actor's hand to another's bone; export one `.anim` per actor with a sit-target note and ready-made AVsitter2 and nPose lines. Several clips per project export in one go, with a Firestorm AO or ZHAO-II notecard written for them.
-- **Props and mesh bodies.** COLLADA and FBX props, static or rigged, with a starter set; import a devkit body so IK, pins and the export fit its proportions. VATs never copies or uploads devkit files.
-- **Export that matches the viewer.** Per-bone priority, hand pose, expression, loop and ease settings; key reduction per bone or by a distance anywhere on the body; a live upload meter with Fit to 250 KB; naming patterns, mirrored copies and copies baked for other avatar heights; files the viewer would reject are refused with the reason.
+- **Props and mesh bodies.** COLLADA, FBX and glTF props, static or rigged, with a starter set, and a one-click sit onto a seat; import a devkit body so IK, pins and the export fit its proportions, posed in its own bone axes where the file has them. VATs never copies or uploads devkit files.
+- **Rigging your own models.** Map a game character, creature or mech rigged to bones of its own onto SL's skeleton (rig tables for Mixamo, Rigify, Daz, Character Creator, MMD, Auto-Rig Pro and more, quadrupeds and birds included), with spare chains for scarves and tails and soft-body volumes with SL's avatar physics previewed. Or rig a model with no skeleton from markers you drag onto its joints, weighted by bone heat, and touch the weights up with a brush. Hide parts and set shape keys, then export a rigged `.dae` checked against the SL uploader's rules, with a joint offset inspector.
+- **Export that matches the viewer.** Per-bone priority, hand pose, expression, loop and ease settings; key reduction per bone or by a distance anywhere on the body; a live upload meter with Fit to 250 KB; naming patterns, mirrored copies and copies baked for other avatar heights; files the viewer would reject are refused with the reason. Deformer options keep a wearer made taller from sinking, and rest-position keys stop a stand inheriting a walk's moved joints.
 - **Check it before you upload.** Preview as SL Plays It plays the exported bytes back on the body, with a table of how far each bone strays; the Animation Check lints for loop pops, feet in the floor, frozen bones, body parts passing through each other and more, each with a one-click fix; the Priority Planner shows which animation wins each bone against an AO, a dance or a pose.
 - **Reference and listing media.** A picture or a numbered picture sequence behind the avatar or on a plane in the scene, saved with the project; an animated GIF or PNG frames of the finished animation, with an optional turntable, for a listing.
-- **Familiar controls.** Industry (Maya-style), Blender, QAvimator and Second Life presets, an orthographic view, lighting presets and a plain backdrop, an audio track with beat markers, onion skinning with pinned ghosts, a hand poser, a pose and clip library, autosave with crash recovery, and built-in help.
+- **Familiar controls.** Second Life, Industry (Maya-style), Blender and QAvimator presets, workspaces for posing, animating, faces, rigging and export, a Tab pie of tools at the pointer, a search in every menu, an orthographic view, lighting presets and a plain backdrop, an audio track with beat markers, onion skinning with pinned ghosts, a hand poser, a pose and clip library, autosave with crash recovery, and built-in help.
 
 ## In Second Life
 
@@ -119,7 +121,7 @@ The code is in three parts: `core/` is the animation engine in plain C++20 with 
 
 ## Roadmap
 
-Not built yet, in no fixed order: a macOS build; rigging and weight painting for meshes made elsewhere; video files as reference (a numbered picture sequence works now); an animesh preview; SL-native constraints on export; interface translations; a visible undo history. None of these is in this release.
+Not built yet, in no fixed order: a macOS build; video files as reference (a numbered picture sequence works now); an animesh preview; SL-native constraints on export; interface translations. None of these is in this release.
 
 ## Contributing
 

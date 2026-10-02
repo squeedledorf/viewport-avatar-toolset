@@ -5,7 +5,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <set>
 
+#include "vats/deformer.h"
+#include "vats/position_reset.h"
 #include "vats/rig.h"
 #include "vats/world_reduce.h"
 
@@ -116,6 +119,15 @@ bool static_rotation(const std::vector<Pose>& frames, int node, double tol_deg) 
 }
 
 AnimExportResult export_anim(const Skeleton& skel, const Clip& clip, const AnimExportOptions& opt) {
+    if (opt.end_at_rest || opt.hold_without_sinking) {  // the deformer tool: on a copy, then as usual
+        AnimExportOptions plain = opt;
+        plain.end_at_rest = plain.hold_without_sinking = false;
+        std::vector<std::string> notes;
+        const Clip c = with_deformer_options(skel, clip, opt, &notes);
+        AnimExportResult r = export_anim(skel, c, plain);
+        r.warnings.insert(r.warnings.end(), notes.begin(), notes.end());
+        return r;
+    }
     AnimExportResult res;
     AnimFile& f = res.file;
     int fps = std::clamp(clip.fps, 1, 120);
@@ -200,7 +212,7 @@ AnimExportResult export_anim(const Skeleton& skel, const Clip& clip, const AnimE
     std::vector<Pose> frames;
     frames.reserve(n);
     for (int fr = 0; fr < n; ++fr)
-        frames.push_back(baked ? evaluate(rig, clip, fr, opt.shape).pose : evaluate_curves(skel, clip, fr));
+        frames.push_back(baked ? evaluate(rig, clip, fr, opt.shape, opt.constraints).pose : evaluate_curves(skel, clip, fr));
 
     // IO-11a: position channels that move nothing are left out (the pelvis keeps its own); a joint keyed only
     // by them gets no record at all.
@@ -235,6 +247,14 @@ AnimExportResult export_anim(const Skeleton& skel, const Clip& clip, const AnimE
     }
 
     bool clamped = false;
+    std::set<std::string> reset_joints;
+    if (opt.reset_positions) {
+        reset_joints.insert(opt.reset_position_joints.begin(), opt.reset_position_joints.end());
+        for (const std::string& name : opt.reset_position_joints) {
+            int node = skel.find(name);
+            if (node > 0) animated[node] = 1;
+        }
+    }
     for (int i = 0; i < skel.size(); ++i) {
         if (!animated[i]) continue;
         const Node& node = skel[i];
@@ -247,8 +267,9 @@ AnimExportResult export_anim(const Skeleton& skel, const Clip& clip, const AnimE
         for (int fr = 0; fr < n; ++fr) rot[fr] = (node.rest * frames[fr].rot[i]).normalized();
         static const Track kNoTrack;
         const Track& track = tracks[i] ? *tracks[i] : kNoTrack;
+        const bool reset_pos_only = opt.reset_positions && !turns[i] && !has_pos[i] && reset_joints.count(node.name);
         std::vector<int> rot_keys;
-        if (rot_out[i]) {
+        if (!reset_pos_only && rot_out[i]) {
             const std::vector<char> anchors = key_frames(track, kRotChannels, n);
             rot_keys = world ? reduce_rotation_keys_world(rot, reach[i], budget[i], opt.max_gap, anchors)
                              : reduce_rotation_keys(rot, opt.reduce_rot_deg, opt.max_gap, anchors);
@@ -283,6 +304,8 @@ AnimExportResult export_anim(const Skeleton& skel, const Clip& clip, const AnimE
                 auto c = encode_position(pos[k]);
                 j.pos.push_back({time_code(k, fps, f.duration), c[0], c[1], c[2]});
             }
+        } else if (i > 0 && opt.reset_positions && reset_joints.count(node.name)) {
+            j.pos = rest_position_keys(skel, i, opt.reset_shape ? opt.reset_shape : opt.positions);
         }
         f.joints.push_back(std::move(j));
     }

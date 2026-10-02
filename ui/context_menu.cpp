@@ -133,6 +133,11 @@ void App::draw_context_menu() {
             poses_of_kind("pose", "");
             ImGui::EndMenu();
         }
+        for (int k : seat_props()) {  // a chair in the scene: one click to sit on it
+            if (ImGui::MenuItem(("Sit on " + clip.props[size_t(k)].name).c_str())) sit_on(k);
+            ImGui::SetItemTooltip("At this frame: the Sitting pose if not sitting yet, the thighs on its seat, the feet "
+                                  "held on the floor");
+        }
         ImGui::Separator();
         menu_item("select_all");
         menu_item("select_keyed_frame");  // one implementation with the Select menu (AM-132)
@@ -183,12 +188,11 @@ void App::draw_context_menu() {
             int target = *other;
             selection_ = {target, node};
             run_action("pin_bone");
-        } else if (!two) {
-            ImGui::BeginDisabled();
-            ImGui::MenuItem("Bind to a Bone...");
-            ImGui::EndDisabled();
-            ImGui::SetItemTooltip("Select the bone to ride, then Shift-click this point");
+        } else if (!two && ImGui::MenuItem("Bind to...")) {
+            select(node, false);
+            run_action("bind_to");
         }
+        if (!two) ImGui::SetItemTooltip("Then click the bone it should ride, in the view");
         if (pin >= 0) {
             const int parent = skel_[node].parent;
             std::string follow = parent >= 0 ? skel_[parent].name : "the avatar";
@@ -227,6 +231,17 @@ void App::draw_context_menu() {
                 }
             }
         }
+        // A hand on a thigh, a foot on a step: this bone rides another from this frame on, picked with a click. An arm
+        // or a leg binds by its end (the wrist, the ankle), as a hand or a foot is what touches.
+        int bind_node = node;
+        const bool arm = part.kind == PartKind::Arm || part.kind == PartKind::Hand, leg = part.kind == PartKind::Leg;
+        if (const int end = part.side.empty() ? -1 : skel_.find((arm ? "mWrist" : "mAnkle") + part.side); end >= 0 && (arm || leg))
+            bind_node = end;
+        if (ImGui::MenuItem(("Bind " + bone_label(bind_node) + " to...").c_str())) {
+            select(bind_node, false);
+            run_action("bind_to");
+        }
+        ImGui::SetItemTooltip("Then click the bone it should ride, in the view: it follows that bone from this frame on");
         if (ImGui::MenuItem(("Select " + P).c_str())) select_part(part);
         if (part.kind == PartKind::Arm) ImGui::SetItemTooltip("Includes the hand and the IK handles");
         if (ImGui::MenuItem(("Key " + P).c_str()))

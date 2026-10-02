@@ -13,6 +13,8 @@
 #include "vats/anim_file.h"
 #include "vats/bvh.h"
 #include "vats/edit.h"
+#include "vats/pose_ops.h"
+#include "vats/position_reset.h"
 #include "vats/project.h"
 #include "vats/rig.h"
 #include "vats/shape.h"
@@ -628,4 +630,186 @@ TEST(pelvis_plays_at_standing_height_on_every_bake_shape) {
             if (worst > tol) std::fprintf(stderr, "    %s: pelvis off by %.6f m\n", k.name, worst);
         }
     }
+}
+
+TEST(export_reset_joint_positions) {
+    const Skeleton& s = skel();
+    Clip stand;
+    stand.fps = 30;
+    stand.end_frame = 30;
+    key_euler(stand, "mKneeLeft", 0, {20, 0, 0});
+    key_euler(stand, "mKneeLeft", 30, {20, 0, 0});
+
+    // 1. Off, the joints list is ignored; on with nothing to reset, nothing is added: both byte-identical.
+    const std::vector<std::uint8_t> default_bytes = export_bytes(stand, {});
+    AnimExportOptions opt_off;
+    opt_off.reset_positions = false;
+    opt_off.reset_position_joints = {"mKneeLeft", "mAnkleLeft"};
+    CHECK(default_bytes == export_bytes(stand, opt_off));
+    AnimExportOptions opt_empty;
+    opt_empty.reset_positions = true;
+    CHECK(default_bytes == export_bytes(stand, opt_empty));
+
+    // 2. With option on: SL default bake shape
+    AnimExportOptions opt_on;
+    opt_on.reset_positions = true;
+    opt_on.reset_position_joints = {"mKneeLeft"};
+    AnimExportResult r_default = export_anim(s, stand, opt_on);
+    CHECK(r_default.errors.empty());
+
+    const AnimJoint* knee_def = nullptr;
+    for (const auto& j : r_default.file.joints) {
+        if (j.name == "mKneeLeft") knee_def = &j;
+    }
+    CHECK(knee_def != nullptr);
+    if (knee_def) {
+        CHECK(knee_def->pos.size() == 2);
+        CHECK(knee_def->pos[0][0] == 0);
+        CHECK(knee_def->pos[1][0] == 65535);
+        const Vec3 p0 = decode_position(knee_def->pos[0]);
+        const Vec3 p1 = decode_position(knee_def->pos[1]);
+        CHECK((p0 - p1).length() < 1e-6);
+        const int knee_node = s.find("mKneeLeft");
+        CHECK((p0 - s[knee_node].pos).length() < 5e-4);
+    }
+
+    // 3. With option on: mesh body with joint offsets
+    Shape mesh_body;
+    mesh_body.offset.resize(s.size());
+    const int knee_node = s.find("mKneeLeft");
+    mesh_body.offset[knee_node] = {0.03, -0.02, 0.05};
+    opt_on.positions = &mesh_body;
+    AnimExportResult r_mesh = export_anim(s, stand, opt_on);
+    CHECK(r_mesh.errors.empty());
+
+    const AnimJoint* knee_mesh = nullptr;
+    for (const auto& j : r_mesh.file.joints) {
+        if (j.name == "mKneeLeft") knee_mesh = &j;
+    }
+    CHECK(knee_mesh != nullptr);
+    if (knee_mesh) {
+        CHECK(knee_mesh->pos.size() == 2);
+        CHECK(knee_mesh->pos[0][0] == 0);
+        CHECK(knee_mesh->pos[1][0] == 65535);
+        const Vec3 p0 = decode_position(knee_mesh->pos[0]);
+        const Vec3 expected = s[knee_node].pos + mesh_body.offset[knee_node];
+        CHECK((p0 - expected).length() < 5e-4);
+    }
+
+    // 4. Reset position on joint not rotated by this clip (e.g. from other clips or picked)
+    opt_on.positions = nullptr;
+    opt_on.reset_position_joints = {"mAnkleLeft"};
+    AnimExportResult r_unrotated = export_anim(s, stand, opt_on);
+    CHECK(r_unrotated.errors.empty());
+    const AnimJoint* ankle = nullptr;
+    for (const auto& j : r_unrotated.file.joints) {
+        if (j.name == "mAnkleLeft") ankle = &j;
+    }
+    CHECK(ankle != nullptr);
+    if (ankle) {
+        CHECK(ankle->rot.empty());  // unrotated joint gets NO rotation keys
+        CHECK(ankle->pos.size() == 2);
+        const int ankle_node = s.find("mAnkleLeft");
+        CHECK((decode_position(ankle->pos[0]) - s[ankle_node].pos).length() < 5e-4);
+    }
+
+    // 5. resolve_reset_position_joints modes
+    Clip walk;
+    walk.curves["mWristRight"]["pos_x"].set_key(0, 0.1);
+    walk.curves["mWristRight"]["pos_x"].set_key(30, 0.1);
+    std::vector<const Clip*> other = {&walk};
+
+    // rotated mode
+    Json ex_rot = Json::object();
+    ex_rot.set("reset_positions", true);
+    ex_rot.set("reset_positions_mode", "rotated");
+    auto rot_set = resolve_reset_position_joints(s, stand, other, ex_rot);
+    CHECK((rot_set == std::vector<std::string>{"mKneeLeft"}));
+
+    // other_clips mode
+    Json ex_other = Json::object();
+    ex_other.set("reset_positions", true);
+    ex_other.set("reset_positions_mode", "other_clips");
+    auto other_set = resolve_reset_position_joints(s, stand, other, ex_other);
+    CHECK((other_set == std::vector<std::string>{"mWristRight"}));
+
+    // pick mode
+    Json ex_pick = Json::object();
+    ex_pick.set("reset_positions", true);
+    ex_pick.set("reset_positions_mode", "pick");
+    Json picked = Json::array();
+    picked.push("mElbowLeft");
+    picked.push("mElbowRight");
+    ex_pick.set("reset_positions_joints", picked);
+    auto pick_set = resolve_reset_position_joints(s, stand, other, ex_pick);
+    CHECK((pick_set == std::vector<std::string>{"mElbowLeft", "mElbowRight"}));
+    // Attachment points and collision volumes are not joints an animation moves.
+    picked.push("Chest");   // an attachment point
+    picked.push("L_HAND");  // a collision volume
+    ex_pick.set("reset_positions_joints", picked);
+    CHECK((resolve_reset_position_joints(s, stand, other, ex_pick) == std::vector<std::string>{"mElbowLeft", "mElbowRight"}));
+}
+
+// Bake shape "Mesh body": the app bakes on the body (shape) and writes positions from SL's defaults (positions
+// null, IO-11), but the reset keys must hold the body's own rest, or they pull its longer legs back to SL's.
+TEST(export_reset_joint_positions_on_a_mesh_body) {
+    const Skeleton& s = skel();
+    Clip stand;
+    stand.end_frame = 30;
+    key_euler(stand, "mKneeLeft", 0, {20, 0, 0});
+    Shape long_legs;  // vats_make_test_body --long-legs: knees 5 cm and ankles 10 cm lower
+    long_legs.offset.resize(s.size());
+    long_legs.offset[s.find("mKneeLeft")] = long_legs.offset[s.find("mAnkleLeft")] = {0, 0, -0.05};
+    AnimExportOptions opt;  // as App::anim_export_options builds them for "mesh:"
+    opt.shape = opt.reset_shape = &long_legs;
+    opt.reset_positions = true;
+    opt.reset_position_joints = {"mKneeLeft"};
+    const AnimFile f = export_anim(s, stand, opt).file;
+    const int knee = s.find("mKneeLeft");
+    bool found = false;
+    for (const AnimJoint& j : f.joints)
+        if (j.name == "mKneeLeft" && j.pos.size() == 2) {
+            found = true;
+            CHECK((decode_position(j.pos[0]) - (s[knee].pos + long_legs.offset[knee])).length() < 5e-4);
+        }
+    CHECK(found);
+}
+
+// A joint whose position channels are keyed at rest writes no position (IO-11a), so it is reset like one with none.
+TEST(reset_joint_positions_counts_positions_keyed_at_rest_as_none) {
+    const Skeleton& s = skel();
+    Clip stand;
+    stand.end_frame = 30;
+    key_euler(stand, "mKneeLeft", 0, {20, 0, 0});
+    key_offset(stand, "mKneeLeft", 0, {});
+    key_euler(stand, "mKneeRight", 0, {20, 0, 0});
+    key_offset(stand, "mKneeRight", 15, {0.02, 0, 0});  // moves: its own keys are written
+    Json ex = Json::object();
+    ex.set("reset_positions", true);
+    const auto set = resolve_reset_position_joints(s, stand, {}, ex);
+    CHECK((set == std::vector<std::string>{"mKneeLeft"}));
+    AnimExportOptions opt;
+    opt.reset_positions = true;
+    opt.reset_position_joints = set;
+    bool reset = false;
+    for (const AnimJoint& j : export_anim(s, stand, opt).file.joints)
+        if (j.name == "mKneeLeft") reset = j.pos.size() == 2;
+    CHECK(reset);
+}
+
+// Export mirrored: the joints come from the mirrored clip, and the picked ones swap sides with it.
+TEST(reset_joint_positions_follow_export_mirrored) {
+    const Skeleton& s = skel();
+    Clip left;
+    left.end_frame = 30;
+    key_euler(left, "mKneeLeft", 0, {0, 30, 0});
+    left.export_settings.set("reset_positions", true);
+    const Clip m = mirrored_clip(s, left);
+    CHECK((resolve_reset_position_joints(s, m, {}, m.export_settings) == std::vector<std::string>{"mKneeRight"}));
+    Json picked = Json::array();
+    picked.push("mElbowLeft");
+    left.export_settings.set("reset_positions_mode", "pick");
+    left.export_settings.set("reset_positions_joints", picked);
+    const Clip mp = mirrored_clip(s, left);
+    CHECK((resolve_reset_position_joints(s, mp, {}, mp.export_settings) == std::vector<std::string>{"mElbowRight"}));
 }

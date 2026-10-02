@@ -27,11 +27,12 @@ void main() {
 // A large ground quad; the grid, forward arrow and contact shadow are drawn procedurally.
 const char* kGroundVs = R"(#version 330 core
 uniform mat4 view_proj;
+uniform vec3 focus;
 out vec2 world;
 void main() {
     vec2 corner = vec2(gl_VertexID & 1, (gl_VertexID >> 1) & 1) * 2.0 - 1.0;
     world = corner * 40.0;
-    gl_Position = view_proj * vec4(world, 0.0, 1.0);
+    gl_Position = view_proj * vec4(world, focus.z, 1.0);
 })";
 
 const char* kGroundFs = R"(#version 330 core
@@ -263,7 +264,7 @@ void Renderer::draw_ground(const Vec3& focus) {
     gl::UniformMatrix4fv(gl::GetUniformLocation(ground_prog_, "view_proj"), 1, GL_FALSE, view_proj_.m);
     set3(ground_prog_, "eye", float(eye_.x), float(eye_.y), float(eye_.z));
     set3(ground_prog_, "grid_colour", colours_.grid);
-    set3(ground_prog_, "focus", float(focus.x), float(focus.y), 0);
+    set3(ground_prog_, "focus", float(focus.x), float(focus.y), float(focus.z));  // z: the body's floor
     gl::BindVertexArray(empty_vao_);
     gl::DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     gl::DepthMask(GL_TRUE);

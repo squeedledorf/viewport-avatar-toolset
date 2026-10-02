@@ -2,12 +2,21 @@
 // mesh-body import (spec 08 BD) without shipping or needing anyone's real devkit.
 // Copyright (C) 2026 Viewport Avatar Toolset contributors. LGPL-2.1, see LICENSE.
 //
-// Usage: vats_make_test_body <data/character dir> <out dir> [--long-legs] [--bento-face] [--scale k]
+// Usage: vats_make_test_body <data/character dir> <out dir> [--long-legs] [--bento-face] [--scale k] [--mech [--tail] [--hooves]]
+//        [--static] [--blob [--a-pose] [--tail]]
 // Writes head.dae, upper.dae and lower.dae (SL default female shape, rest pose), weighted to SL joint names.
 // --long-legs binds the knees 5 cm and the ankles 10 cm lower, like a devkit with its own joint positions (BD-3).
 // --scale k makes the whole body k times the size: a very tall (1.35) or short (0.7) avatar.
 // --bento-face also writes head-bento.dae, the head weighted to the Bento face bones by distance (so face
 // tracking shows on a surface, spec 08 MC-5), and eyes.dae, the eyeballs on mFaceEyeAltLeft/Right.
+// --mech writes only mech.dae: the boxy mech of tools/mech_rig.h, rigged in Blender's bone axes with rolled bones and
+// hind legs hinged off SL's axes (rig axes, Auto IK). CC0. With --tail it is mech-tail.dae: the same with a six-bone
+// tail and a belly pod on the BELLY collision volume (dragging the body and follow-through, spec 08 FP). --hooves
+// stands the hind legs on hooves whose joints stay high (planting by the skin, FP-3): mech-hooves.dae (or
+// mech-tail-hooves.dae).
+// Unrigged bodies for rigging from scratch (spec 08 RG-14): --static writes body-static.dae, the Linden body's head,
+// upper and lower body as three parts with no skin at all; --blob writes blob.dae (blob-a.dae in an A-pose, blob-tail.dae
+// with a tail), one closed surface made in code round a humanoid's capsules (tools/blob_body.h).
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -19,6 +28,8 @@
 #include <utility>
 #include <vector>
 
+#include "blob_body.h"
+#include "mech_rig.h"
 #include "vats/avatar_mesh.h"
 #include "vats/skeleton.h"
 
@@ -235,16 +246,23 @@ std::vector<Weights> bento_face_weights(const Skeleton& skel, const std::vector<
 }  // namespace
 
 int main(int argc, char** argv) {
-    bool long_legs = false, bento = false;
+    bool long_legs = false, bento = false, mech = false, tail = false, hooves = false, still = false, blob_body = false, a_pose = false;
     double scale = 1;
     for (int i = 3; i < argc; ++i) {
         const std::string a = argv[i];
+        mech = mech || a == "--mech";
+        tail = tail || a == "--tail";
+        hooves = hooves || a == "--hooves";
         long_legs = long_legs || a == "--long-legs";
         bento = bento || a == "--bento-face";
+        still = still || a == "--static";
+        blob_body = blob_body || a == "--blob";
+        a_pose = a_pose || a == "--a-pose";
         if (a == "--scale" && i + 1 < argc) scale = std::atof(argv[++i]);
     }
     if (argc < 3 || scale <= 0) {
-        std::fprintf(stderr, "usage: %s <character dir> <out dir> [--long-legs] [--bento-face] [--scale k]\n", argv[0]);
+        std::fprintf(stderr, "usage: %s <character dir> <out dir> [--long-legs] [--bento-face] [--scale k] [--mech [--tail] [--hooves]]"
+                             " [--static] [--blob [--a-pose] [--tail]]\n", argv[0]);
         return 2;
     }
     std::string dir = argv[1], out = argv[2], err;
@@ -253,6 +271,18 @@ int main(int argc, char** argv) {
     if (!skel.load_dir(dir, err) || !mesh.load(skel, dir, err)) {
         std::fprintf(stderr, "%s\n", err.c_str());
         return 1;
+    }
+    if (blob_body) {
+        const std::string path = out + "/blob" + (a_pose ? "-a" : "") + (tail ? "-tail" : "") + ".dae";
+        std::ofstream(path) << blob::static_dae(blob::mesh(blob::humanoid(a_pose, tail), 0.012));
+        std::printf("%s\n", path.c_str());
+        return 0;
+    }
+    if (mech) {
+        const std::string path = out + "/mech" + (tail ? "-tail" : "") + (hooves ? "-hooves" : "") + ".dae";
+        std::ofstream(path) << mech::dae(skel, mech::build(skel, tail, hooves));
+        std::printf("%s\n", path.c_str());
+        return 0;
     }
     mesh.build(Body::SLDefault);
     Shape shaped = *mesh.shape(Body::SLDefault);
@@ -264,6 +294,23 @@ int main(int argc, char** argv) {
     std::vector<float> pos, nrm;
     mesh.skin(globals, shape, pos, nrm);
 
+    if (still) {  // the three parts, unrigged, in one file
+        DaeModel m;
+        const char* part_names[] = {"Head", "Upper body", "Lower body"};
+        for (int f = 0; f < 3; ++f) {
+            const MeshPart& part = mesh.parts()[f];
+            const std::uint32_t v0 = std::uint32_t(m.positions.size() / 3), i0 = std::uint32_t(m.indices.size());
+            m.positions.insert(m.positions.end(), pos.begin() + part.first_vertex * 3, pos.begin() + (part.first_vertex + part.vertex_count) * 3);
+            m.normals.insert(m.normals.end(), nrm.begin() + part.first_vertex * 3, nrm.begin() + (part.first_vertex + part.vertex_count) * 3);
+            for (std::uint32_t k = part.first_index; k < part.first_index + part.index_count; ++k)
+                m.indices.push_back(mesh.indices()[k] - part.first_vertex + v0);
+            m.parts.push_back({part_names[f], v0, part.vertex_count, i0, part.index_count});
+        }
+        const std::string path = out + "/body-static.dae";
+        std::ofstream(path) << blob::static_dae(m);
+        std::printf("%s\n", path.c_str());
+        return 0;
+    }
     const char* names[] = {"head", "upper", "lower"};
     for (int f = 0; f < 3; ++f) {
         const MeshPart& part = mesh.parts()[f];

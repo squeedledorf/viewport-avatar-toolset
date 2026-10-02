@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 
 #include "check.h"
@@ -5,6 +6,9 @@
 #include "vats/edit.h"
 #include "vats/pose_ops.h"
 #include "vats/pose_tools.h"
+#include "vats/footlock.h"
+#include "vats/pose_presets.h"
+#include "vats/suggest_limits.h"
 
 using namespace vats;
 
@@ -166,4 +170,66 @@ TEST(pose_tools_curve_buffer) {
     CHECK_NEAR(buf.curve("mHead", "rot_z")->evaluate(0), 50, 1e-12);
     buf.clear();
     CHECK(buf.curve("mHead", "rot_z") == nullptr);
+}
+
+// Sit on This: from the Sitting starter pose, floating as it starts, onto a chair's 45 cm seat as the sit tutorial
+// does by hand (its hips end near -0.43 m): feet on the floor and held there, thighs on the seat.
+TEST(sit_on_seat_puts_the_sitting_pose_on_the_seat_with_its_feet_held) {
+    const Skeleton& s = skel();
+    const Rig rig(s);
+    Clip clip;
+    const auto& poses = builtin_poses(s);
+    const auto sit = std::find_if(poses.begin(), poses.end(), [](const LibraryItem& it) { return it.id == "builtin:body-sit"; });
+    CHECK(sit != poses.end());
+    apply_pose(clip, s, *sit, 0, false);
+    const double floor = sole_floor(s, nullptr), seat = floor + 0.45;
+    CHECK(sole_height(s, evaluate(rig, clip, 0, nullptr).globals) - floor > 0.3);  // floating, as the newcomer found it
+    std::string report;
+    CHECK(sit_on_seat(clip, rig, 0, seat, nullptr, report));
+    CHECK(!report.empty());
+    const Evaluation e = evaluate(rig, clip, 0, nullptr);
+    CHECK_NEAR(sole_height(s, e.globals), floor, 0.02);  // the feet on the floor
+    CHECK(pin_at(clip, rig, s.find("mAnkleLeft"), 0) >= 0 && pin_at(clip, rig, s.find("mAnkleRight"), 0) >= 0);
+    CHECK_NEAR(curve_offset(clip, "mPelvis", 0).z, -0.43, 0.06);
+    // The thighs rest on the seat: their line a thigh's half-thickness above it, hip to knee.
+    const std::vector<Vec3> thigh = thigh_points(rig, clip, 0, nullptr);
+    CHECK(thigh.size() == 8);
+    for (const Vec3& p : thigh) CHECK(p.z > seat && p.z < seat + 0.15);
+    // A lower seat (a stool at 38 cm): the hips go lower, the feet stay held.
+    Clip low;
+    apply_pose(low, s, *sit, 0, false);
+    CHECK(sit_on_seat(low, rig, 0, floor + 0.38, nullptr, report));
+    CHECK(curve_offset(low, "mPelvis", 0).z < curve_offset(clip, "mPelvis", 0).z - 0.05);
+    CHECK_NEAR(sole_height(s, evaluate(rig, low, 0, nullptr).globals), floor, 0.03);
+}
+
+// The Hand Poser's curl (spec 06 4.6): what a drag keys reads back as the curl the readout shows, and with the finger
+// limits a long drag stops where a finger stops instead of folding back through the hand.
+TEST(hand_poser_curl_reads_back_and_keeps_to_the_finger_limits) {
+    const Skeleton& s = skel();
+    const RigConstraints limits = template_limits(s);
+    const std::vector<std::string> index = {"mHandIndex1Left", "mHandIndex2Left", "mHandIndex3Left"};
+    auto drag = [&](double curl, bool limited) {
+        Clip clip;
+        for (size_t n = 0; n < index.size(); ++n)
+            key_rotation(clip, index[n], 0,
+                         finger_segment_rotation(s, s.find(index[n]), Quat{}, curl, 0, n == 0,
+                                                 limited ? limits.find(index[n]) : nullptr, nullptr));
+        return finger_curl_degrees(s, clip, index, 0);
+    };
+    CHECK_NEAR(drag(0, false), 0, 1e-6);
+    CHECK_NEAR(drag(30, false), 90, 0.5);  // 30 degrees on each of the three
+    CHECK_NEAR(drag(30, true), 90, 0.5);   // well inside the limits: untouched
+    CHECK_NEAR(drag(-20, false), -60, 0.5);
+    // A long drag: 170 degrees a joint would fold the finger round through the back of the hand.
+    const double folded = drag(170, true);
+    CHECK(folded > 200 && folded <= 85 + 100 + 85 + 1);
+    CHECK_NEAR(drag(245, true), folded, 1e-6);  // a 400-pixel drag: still curled, not wrapped round to bent back
+    CHECK(drag(245, false) > 0);
+    CHECK(drag(-90, true) > -86);  // bent back: the middle and end joints not at all, the knuckle within its cone
+    // The thumb curls about its slanted axis and reads back the same.
+    const std::vector<std::string> thumb = {"mHandThumb2Right"};
+    Clip clip;
+    key_rotation(clip, thumb[0], 0, finger_segment_rotation(s, s.find(thumb[0]), Quat{}, 40, 0, false, nullptr, nullptr));
+    CHECK_NEAR(finger_curl_degrees(s, clip, thumb, 0), 40, 0.5);
 }
