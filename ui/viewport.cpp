@@ -497,6 +497,29 @@ int App::pick_node(ImVec2 m, std::vector<int>* ranked, bool with_points) const {
 }
 
 // 08 FP-2: the bone that owns the skin point under m, from skin weights at the hit triangle.
+bool App::body_point_under(ImVec2 m, Vec3& out) const {
+    // The body as drawn: in the world view the swapped body in your live pose (as the viewer shows it), else the
+    // editor's own. Every triangle counts, whatever bone it belongs to.
+    const bool world = host_.world_view();
+    const MeshBody* b = mesh_body();  // the body draw_mesh_body draws, in either view
+    if (!b) return false;
+    const auto& skins = world ? live_body_skin_pos_ : mesh_body_skin_pos_;
+    Vec3 o, d;
+    projector_.ray(camera_, m.x, m.y, o, d);
+    double best = 1e30;
+    for (const std::string& path : b->parts) {
+        const auto mdl = prop_models_.find(path);
+        const auto pos = skins.find(path);
+        if (mdl == prop_models_.end() || !mdl->second || pos == skins.end() || pos->second.size() != mdl->second->positions.size())
+            continue;
+        const SurfaceHit h = ray_surface(o, d, pos->second, mdl->second->indices);
+        if (h.triangle >= 0 && h.t < best) best = h.t;
+    }
+    if (best >= 1e30) return false;
+    out = o + d * best;
+    return true;
+}
+
 int App::pick_mesh_bone(ImVec2 m, double* out_t) const {
     VATS_PROFILE("pick mesh bone (ray vs body)");
     Vec3 o, d;
@@ -1425,7 +1448,7 @@ void App::render_world_scene() {
     static std::vector<std::uint32_t> indices;
     draw_other_actors(colours);
     // Your actor, swapped: posed by the editor, or in a real-avatar mode by what your avatar does in the world (build 34).
-    if (!editing_other() && swap_shown() && !globals_.empty()) draw_mesh_body(verts, indices, swap_live_globals());
+    if (!editing_other() && swap_shown() && !globals_.empty()) draw_mesh_body(verts, indices, swap_live_globals(), true);
     draw_target(colours);  // the target ghost: through the world's scene triangles, as the other actors
     // Editing another actor than yours: it stands at its place with its body, posed live (None: its bones only).
     if (editing_other() && !doc_.project.actors[doc_.project.active].body.empty() && !globals_.empty())

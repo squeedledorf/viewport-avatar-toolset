@@ -501,7 +501,8 @@ std::string App::real_mode_swap_note() const {
                                       : "; your real avatar shows meanwhile";
 }
 
-void App::draw_mesh_body(std::vector<Vertex>& verts, std::vector<std::uint32_t>& indices, const std::vector<Xform>* globals) {
+void App::draw_mesh_body(std::vector<Vertex>& verts, std::vector<std::uint32_t>& indices, const std::vector<Xform>* globals,
+                         bool keep_live) {
     VATS_PROFILE("draw mesh body");
     const MeshBody* b = mesh_body();
     if (!b) return;
@@ -515,6 +516,7 @@ void App::draw_mesh_body(std::vector<Vertex>& verts, std::vector<std::uint32_t>&
             mesh_body_skin_pos_[path] = prop_skin_pos_;
             invalidate_floor_cache();
         }
+        if (keep_live) live_body_skin_pos_[path] = prop_skin_pos_;  // the world view's body as drawn: alt-cam picks it
     }
     if (!globals) mesh_skin_globals_ = globals_, mesh_skin_shape_ = shape(), mesh_skin_body_ = b->id;  // the floor reuses it
 }

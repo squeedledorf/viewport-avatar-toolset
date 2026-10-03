@@ -940,7 +940,7 @@ RigMap Suggest::run() {
         // mChest goes on the spine bone below the neck, and the neck keeps mNeck. (A mech's shoulders hung from its neck
         // start out at its sides: the neck bone stays its chest.)
         const auto it = std::find(spine.begin(), spine.end(), chest);
-        if (it - spine.begin() >= 2 && name[chest].role == Role::Neck &&
+        if (chest >= 0 && it != spine.end() && it - spine.begin() >= 2 && name[chest].role == Role::Neck &&
             std::all_of(arms.begin(), arms.end(), [&](const std::vector<int>& a) {
                 return at(a[0]).z < at(chest).z && flat(at(a[0]) - at(chest)).length() < 0.04 * height;
             }))

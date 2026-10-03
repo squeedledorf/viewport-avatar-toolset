@@ -83,7 +83,8 @@ TEST(deformer_hold_keeps_sl_height_at_rest) {
     const Shape worn = head_scaled(1.1), bake = head_scaled(0.925);
     AnimExportOptions yours;
     yours.shape = &bake, yours.positions = &worn, yours.hold_without_sinking = true;
-    const AnimJoint* sk = joint(export_anim(skel(), neck_stretch(0.5), yours).file, "mSkull");
+    const AnimExportResult exported = export_anim(skel(), neck_stretch(0.5), yours);  // kept: sk points into it
+    const AnimJoint* sk = joint(exported.file, "mSkull");
     const double base = skel()[skel().find("mSkull")].pos.z;
     CHECK(sk && std::fabs(decode_position(sk->pos.back()).z - (base - 0.5 / (std::sqrt(2.0) * 1.1))) < 5e-4);
     // Without a bake shape: head scale 1, assumed, and said so.

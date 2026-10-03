@@ -87,7 +87,8 @@ TEST(sl_preview_interpolates_rotations_as_sl_does) {
     // Outside the keys the first and last hold.
     const Quat end = (skel()[n].rest * anim_pose(skel(), f, 5.0, nullptr).rot[n]).normalized();
     CHECK(std::fabs(std::fabs(end.dot(decode_rotation(j.rot[1]))) - 1) < 1e-12);
-    const auto& dev = deviation_of(anim_deviation(rig, c, f, nullptr), "mShoulderLeft");
+    const auto devs_1 = anim_deviation(rig, c, f, nullptr);  // kept: the reference below points into it
+    const auto& dev = deviation_of(devs_1, "mShoulderLeft");
     CHECK(dev.deg > 1.5 && dev.deg < 3.0);
     CHECK(dev.frame_deg > 0 && dev.frame_deg < 30);
 }

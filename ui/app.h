@@ -488,7 +488,7 @@ private:
     void import_body(const std::vector<std::string>& paths);
     // globals: a pose of your actor's other than the editor's (swap_live_globals); null = the editor's.
     void draw_mesh_body(std::vector<Vertex>& verts, std::vector<std::uint32_t>& indices,
-                        const std::vector<Xform>* globals = nullptr);
+                        const std::vector<Xform>* globals = nullptr, bool keep_live = false);
     const MeshBody* find_mesh_body(const std::string& id) const;
     // BD-3: base with the joints the body's parts were rigged to, and their rig axes (base itself when they have neither).
     void harmonize_body(const MeshBody& b) const;
@@ -664,6 +664,7 @@ private:
     unsigned look_generation_ = 0;   // bumped as a shown mesh is rebuilt (the rest floor follows)
     std::vector<float> prop_skin_pos_, prop_skin_nrm_;
     std::map<std::string, std::vector<float>> mesh_body_skin_pos_;
+    std::map<std::string, std::vector<float>> live_body_skin_pos_;  // the swapped body in your live pose (world view)
     std::vector<Xform> mesh_skin_globals_;  // the pose, shape and body mesh_body_skin_pos_ was skinned in
     const Shape* mesh_skin_shape_ = nullptr;
     std::string mesh_skin_body_;
@@ -1557,6 +1558,11 @@ private:
     void draw_paint_overlay(ImDrawList* dl);   // the brush under the pointer
     bool painting() const;                     // the window is open with Paint on: the glow shows the selected bone
     bool save_painted(const std::string& path, const DaeModel& src, std::string& err);  // into its mapping file
+    // The shown mesh body's nearest point under m (display coordinates), in the UI's space: the viewer's alt-cam focus
+    // uses it for the body it draws in your avatar's place.
+public:
+    bool body_point_under(ImVec2 m, Vec3& out) const;
+private:
     bool paint_visible_ = false;  // the Paint Weights window drew this frame (not hidden behind another tab)
     void stop_painting(const std::string& why);  // the brush off (the window stays), with a status line
     bool undo_paint(bool redo);                // Ctrl+Z / Ctrl+Y on a stroke; false when the last edit was not one

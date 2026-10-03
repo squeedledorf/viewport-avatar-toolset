@@ -637,7 +637,8 @@ TEST(set_from_pose_widens_hinge_and_cone_limits) {
 
     // An unlimited joint starts from its suggestion (the knee's template hinge), not a frozen 0..0 hinge.
     const JointLimit fresh = widen_limit_to_pose(s, nullptr, knee, nullptr, Quat{});
-    const JointLimit* tmpl = template_limits(s).find("mKneeLeft");
+    const auto templates = template_limits(s);  // kept: tmpl points into it
+    const JointLimit* tmpl = templates.find("mKneeLeft");
     CHECK(tmpl && fresh.kind == tmpl->kind);
     if (tmpl) CHECK_NEAR(fresh.max_angle - fresh.min_angle, tmpl->max_angle - tmpl->min_angle, 1e-9);
 
