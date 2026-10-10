@@ -488,9 +488,9 @@ void App::draw_mocap_panel() {
                                 : state == 1 ? IM_COL32(230, 170, 70, 255)
                                              : IM_COL32(120, 120, 120, 255);
                 const ImVec2 p = ImGui::GetCursorScreenPos();
-                const float r = ImGui::GetFontSize() * 0.3f;
-                ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(p.x + r, p.y + ImGui::GetTextLineHeight() / 2), r, c);
-                ImGui::Dummy(ImVec2(r * 2.5f, ImGui::GetTextLineHeight()));
+                const float radius = ImGui::GetFontSize() * 0.3f;
+                ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(p.x + radius, p.y + ImGui::GetTextLineHeight() / 2), radius, c);
+                ImGui::Dummy(ImVec2(radius * 2.5f, ImGui::GetTextLineHeight()));
                 ImGui::SameLine();
                 ImGui::TextWrapped("%s", text.c_str());
             };

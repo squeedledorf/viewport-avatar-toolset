@@ -136,3 +136,58 @@ TEST(filter_curves_range_keeps_outside) {
         CHECK(std::fabs(c.curves["mPelvis"]["pos_z"].evaluate(f) - was.curves.at("mPelvis").at("pos_z").evaluate(f)) < 1e-6);
     CHECK(!c.curves.count("mNope"));
 }
+
+// Motion capture at 60 fps: an arm swinging 40 degrees once a second, a fast punch (90 degrees in 6 frames), and a
+// hip bobbing 3 cm. Clean, nothing is a spike; a one-frame flip, a two-frame dip and a hip jump are rebuilt close
+// to the motion around them; a quick gesture (a 25-degree flick there and back in a fifth of a second) is motion and stays; a rotation wrapping
+// past 180 is not a spike; hand keys are never touched.
+TEST(remove_spikes_rebuilds_glitches_only) {
+    const double pi = std::acos(-1.0);
+    auto swing = [&](double f) { return 40 * std::sin(2 * pi * f / 60); };
+    auto punch = [&](double f) { return f < 100 ? 0.0 : f > 106 ? 90.0 : 90 * (f - 100) / 6; };
+    auto bob = [&](double f) { return 0.03 * std::sin(2 * pi * f / 30); };
+    auto wrap = [&](double f) { double v = 170 + f * 0.5; return v > 180 ? v - 360 : v; };
+    auto build = [&] {
+        Clip c;
+        c.fps = 60, c.end_frame = 200;
+        for (int f = 0; f <= 200; ++f) {
+            c.curves["mShoulderLeft"]["rot_y"].set_key(f, swing(f), Interp::Linear);
+            c.curves["mElbowRight"]["rot_y"].set_key(f, punch(f), Interp::Linear);
+            c.curves["mPelvis"]["pos_z"].set_key(f, bob(f), Interp::Linear);
+            c.curves["mWristLeft"]["rot_z"].set_key(f, wrap(f), Interp::Linear);
+        }
+        for (int f = 0; f <= 200; f += 20) c.curves["mHead"]["rot_x"].set_key(f, f == 100 ? 30 : 0);  // a keyed nod
+        return c;
+    };
+    Clip clean = build();
+    CHECK_EQ(remove_spikes(clean).samples, 0);
+
+    Clip c = build();
+    auto& sh = c.curves["mShoulderLeft"]["rot_y"].keys;
+    sh[50].value += 30;                       // a one-frame flip
+    sh[150].value -= 25, sh[151].value -= 25;  // a two-frame dip
+    auto flick = [&](double f) { return f < 168 || f > 180 ? 0.0 : 25 * std::pow(std::sin(pi * (f - 168) / 12), 2); };
+    for (int f = 168; f <= 180; ++f) sh[size_t(f)].value += flick(f);  // a quick real gesture: stays
+    c.curves["mPelvis"]["pos_z"].keys[80].value += 0.08;  // the hips jump 8 cm for a frame
+    const SpikeReport r = remove_spikes(c);
+    CHECK(r.samples >= 4 && r.samples <= 8);
+    CHECK_EQ(r.worst, std::string("mShoulderLeft rot_y"));
+    const FCurve& s = c.curves["mShoulderLeft"]["rot_y"];
+    for (int f : {50, 150, 151}) CHECK(std::fabs(s.evaluate(f) - swing(f)) < 1.0);
+    for (int f = 168; f <= 180; ++f) CHECK(std::fabs(s.evaluate(f) - (swing(f) + flick(f))) < 1e-9);
+    CHECK(std::fabs(c.curves["mPelvis"]["pos_z"].evaluate(80) - bob(80)) < 0.003);
+    for (int f = 0; f <= 200; ++f) CHECK(std::fabs(c.curves["mWristLeft"]["rot_z"].evaluate(f) - wrap(f)) < 1e-9);
+    CHECK(std::fabs(c.curves["mHead"]["rot_x"].evaluate(100) - 30) < 1e-9);
+    CHECK(std::fabs(c.curves["mElbowRight"]["rot_y"].evaluate(103) - punch(103)) < 1e-9);
+
+    // A glitch on the very first frame, and one across a wrap (175 -> -120 -> 176 is a 65-degree jump, not 295).
+    Clip e = build();
+    e.curves["mShoulderLeft"]["rot_y"].keys[0].value += 30;
+    FCurve& w = e.curves["mWristLeft"]["rot_z"];
+    w.keys[100].value = w.keys[100].value - 65 > -180 ? w.keys[100].value - 65 : w.keys[100].value - 65 + 360;
+    remove_spikes(e);
+    CHECK(std::fabs(e.curves["mShoulderLeft"]["rot_y"].evaluate(0) - swing(0)) < 2.0);
+    const double d = std::fabs(w.evaluate(100) - wrap(100));
+    CHECK(std::min(d, std::fabs(d - 360)) < 1.0);
+    CHECK(std::fabs(w.evaluate(100) - w.evaluate(99)) < 5 || std::fabs(std::fabs(w.evaluate(100) - w.evaluate(99)) - 360) < 5);
+}

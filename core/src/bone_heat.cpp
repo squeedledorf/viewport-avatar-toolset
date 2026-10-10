@@ -665,7 +665,7 @@ bool bone_heat(const std::vector<float>& positions, const std::vector<std::uint3
     {
         const unsigned threads = std::max(1u, std::min(8u, std::thread::hardware_concurrency()));
         std::atomic<int> next{0};
-        std::atomic<int> hidden{0}, far{0};
+        std::atomic<int> hidden{0}, out_of_reach{0};
         auto work = [&] {
             std::vector<double> d(nodes.size());
             std::vector<Vec3> c(nodes.size());
@@ -685,7 +685,7 @@ bool bone_heat(const std::vector<float>& positions, const std::vector<std::uint3
                 const double dmin = std::max(best, size * 1e-6);
                 dist[size_t(v)] = dmin;
                 target[size_t(v)] = c[size_t(nearest[size_t(v)][0])];
-                if (opt.reach > 0 && best > opt.reach) ++far;
+                if (opt.reach > 0 && best > opt.reach) ++out_of_reach;
                 else if (bvh.blocked(pts[size_t(v)], target[size_t(v)], v, piece_of[size_t(v)])) ++hidden;
                 else heat[size_t(v)] = double(nearest[size_t(v)].size()) * opt.c / (dmin * dmin);
             }
@@ -694,7 +694,7 @@ bool bone_heat(const std::vector<float>& positions, const std::vector<std::uint3
         for (unsigned i = 1; i < threads; ++i) pool.emplace_back(work);
         work();
         for (auto& t : pool) t.join();
-        stats.hidden = hidden, stats.far = far;
+        stats.hidden = hidden, stats.out_of_reach = out_of_reach;
     }
     if (cancelled()) return false;
     // A piece no bone can see is heated by its nearest bones regardless, and said so.
@@ -771,9 +771,9 @@ bool bone_heat(const std::vector<float>& positions, const std::vector<std::uint3
                 if (cancelled()) return;
                 const int k = sources[size_t(s)];
                 for (size_t i = 0; i < solved.size(); ++i) {
-                    const auto& near = nearest[size_t(solved[i])];
-                    const bool mine = std::find(near.begin(), near.end(), k) != near.end();
-                    b[i] = mine ? extra[i] / double(near.size()) : 0.0;
+                    const auto& nearby = nearest[size_t(solved[i])];
+                    const bool mine = std::find(nearby.begin(), nearby.end(), k) != nearby.end();
+                    b[i] = mine ? extra[i] / double(nearby.size()) : 0.0;
                 }
                 chol.solve(b);
                 std::lock_guard<std::mutex> g(lock);
@@ -832,7 +832,7 @@ double part_coverage(const std::vector<float>& positions, const std::vector<std:
     if (tris.empty() || target.vertex_count == 0) return 0;
     TriBvh bvh;
     bvh.build(pts, tris);
-    int near = 0;
+    int within = 0;
     for (std::uint32_t v = target.first_vertex; v < target.first_vertex + target.vertex_count; ++v) {
         const Vec3 p{positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]};
         Vec3 bary;
@@ -840,9 +840,9 @@ double part_coverage(const std::vector<float>& positions, const std::vector<std:
         if (t < 0) continue;
         const auto& x = tris[size_t(t)];
         const Vec3 at = pts[size_t(x[0])] * bary.x + pts[size_t(x[1])] * bary.y + pts[size_t(x[2])] * bary.z;
-        near += (at - p).length() <= reach;
+        within += (at - p).length() <= reach;
     }
-    return double(near) / target.vertex_count;
+    return double(within) / target.vertex_count;
 }
 
 bool transfer_weights(const std::vector<float>& positions, const std::vector<std::uint32_t>& indices, const DaePart& source,

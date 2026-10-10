@@ -275,9 +275,9 @@ void App::draw_prop_section() {
             bool clicked = ImGui::SmallButton(labels[k]);
             ImGui::SetItemTooltip("Copy as a vector to paste into the SL build window");
             if (clicked) {
-                std::string v = prop_sl_string(p, k);
-                ImGui::SetClipboardText(v.c_str());
-                status("Copied " + v);
+                std::string sl_str = prop_sl_string(p, k);
+                ImGui::SetClipboardText(sl_str.c_str());
+                status("Copied " + sl_str);
             }
         }
     }

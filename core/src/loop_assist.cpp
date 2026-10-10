@@ -149,9 +149,9 @@ std::vector<LoopCandidate> find_loop_points(const Rig& rig, const Clip& clip, in
     });
     for (const LoopCandidate& c : all) {
         if (int(out.size()) >= count) break;
-        bool near = false;
-        for (const LoopCandidate& o : out) near = near || (std::abs(o.in - c.in) <= 3 && std::abs(o.out - c.out) <= 3);
-        if (!near) out.push_back(c);
+        bool close = false;
+        for (const LoopCandidate& o : out) close = close || (std::abs(o.in - c.in) <= 3 && std::abs(o.out - c.out) <= 3);
+        if (!close) out.push_back(c);
     }
     return out;
 }

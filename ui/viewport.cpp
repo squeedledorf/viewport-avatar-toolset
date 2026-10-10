@@ -1558,12 +1558,14 @@ void App::draw_viewport() {
                   !ImGui::IsAnyItemActive() && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId) &&
                   host_.pointer_on_world();
         projector_ = host_.projector(origin, size);
-        if (ui::Host::HostUi* h = host_.host_ui()) h->place_view(origin, viewport_max_);  // the viewer's toasts stay in here
+        if (ui::Host::HostUi* hui = host_.host_ui()) hui->place_view(origin, viewport_max_);  // the viewer's toasts stay in here
     } else {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         // Always there, as in Second Life: no tab to drag it off by, and nothing docks over it.
         ImGuiWindowClass fixed;
-        fixed.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_NoUndocking | ImGuiDockNodeFlags_NoDockingOverMe;
+        fixed.DockNodeFlagsOverrideSet = (ImGuiDockNodeFlags)ImGuiDockNodeFlags_NoTabBar |
+                                         (ImGuiDockNodeFlags)ImGuiDockNodeFlags_NoUndocking |
+                                         (ImGuiDockNodeFlags)ImGuiDockNodeFlags_NoDockingOverMe;
         ImGui::SetNextWindowClass(&fixed);
         bool open = ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         ImGui::PopStyleVar();
@@ -1730,7 +1732,7 @@ void App::draw_viewport() {
         if (hover_handle_ < 0 && skel_[hover_bone_].attachment && !skel_[hover_bone_].volume)  // spec 09 item 55: the viewer
             if (const std::vector<std::string> worn = host_.worn_on(skel_[hover_bone_].attach_id); !worn.empty()) {
                 label += "\nYou wear here:";
-                for (const std::string& w : worn) label += "\n  " + w;
+                for (const std::string& w_item : worn) label += "\n  " + w_item;
                 const auto track = doc_.clip().curves.find(skel_[hover_bone_].name);
                 if (track != doc_.clip().curves.end() && !track->second.empty())
                     label += "\nThis point is keyed: in-world the animation moves what you wear here";

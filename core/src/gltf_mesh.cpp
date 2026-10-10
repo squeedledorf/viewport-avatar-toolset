@@ -390,8 +390,8 @@ bool load(const std::vector<std::uint8_t>& bytes, const std::string& dir, const 
                         }
                         // In the unit normal's scale: glTF adds the offset to the normal before normalising (shown_model).
                         const double len = nx.dir({nrm[v * 3], nrm[v * 3 + 1], nrm[v * 3 + 2]}).length();
-                        const Vec3 n = nx.dir({dn[v * 3], dn[v * 3 + 1], dn[v * 3 + 2]}) * (len > 1e-12 ? 1 / len : 0.0);
-                        kb.add(base + std::uint32_t(v), d, &n);
+                        const Vec3 ndir = nx.dir({dn[v * 3], dn[v * 3 + 1], dn[v * 3 + 2]}) * (len > 1e-12 ? 1 / len : 0.0);
+                        kb.add(base + std::uint32_t(v), d, &ndir);
                     }
                 }
             for (size_t t = 0; t + 2 < idx.size(); t += 3) {

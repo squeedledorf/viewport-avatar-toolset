@@ -631,11 +631,11 @@ std::vector<RigFinding> check_rig_export(const Skeleton& skel, const std::vector
                 const std::vector<int> r = weight_clashes(model, root, sz);
                 for (size_t v = 0; v < r.size(); ++v) {
                     if (r[v] <= 0) continue;
-                    Vec3 n = v * 3 + 2 < model.normals.size() ? Vec3{model.normals[v * 3], model.normals[v * 3 + 1], model.normals[v * 3 + 2]}.normalized() : Vec3{};
-                    if (n.length() < 0.5) n = {0, 0, 1};
+                    Vec3 nrm = v * 3 + 2 < model.normals.size() ? Vec3{model.normals[v * 3], model.normals[v * 3 + 1], model.normals[v * 3 + 2]}.normalized() : Vec3{};
+                    if (nrm.length() < 0.5) nrm = {0, 0, 1};
                     // Twice the uploader's distance per rank, measured as it measures (scaled to the unit cube).
-                    const double d = 2 * kUploaderEps * r[v] / Vec3{n.x / sz.x, n.y / sz.y, n.z / sz.z}.length();
-                    for (int k = 0; k < 3; ++k) model.positions[v * 3 + k] += float(n[k] * d);
+                    const double d = 2 * kUploaderEps * r[v] / Vec3{nrm.x / sz.x, nrm.y / sz.y, nrm.z / sz.z}.length();
+                    for (int k = 0; k < 3; ++k) model.positions[v * 3 + k] += float(nrm[k] * d);
                 }
             };
         }
@@ -650,9 +650,9 @@ std::vector<RigFinding> check_rig_export(const Skeleton& skel, const std::vector
             add("faces", RigSeverity::Warning, pi,
                 label + " has " + std::to_string(mats.size()) + " materials; the uploader takes 8 per mesh and splits the rest into more meshes (a linkset)");
         for (int material : mats) {
-            std::uint32_t count = 0;
-            for (const DaeGroup& g : m->groups) count += g.material == material ? g.vertex_count : 0;
-            if (count <= unsigned(kMaxFaceVertices)) continue;
+            std::uint32_t face_verts = 0;
+            for (const DaeGroup& g : m->groups) face_verts += g.material == material ? g.vertex_count : 0;
+            if (face_verts <= unsigned(kMaxFaceVertices)) continue;
             // The uploader shares corners with the same position, normal and UV, so count those, not our vertices.
             std::set<std::array<float, 8>> unique;
             for (const DaeGroup& g : m->groups)

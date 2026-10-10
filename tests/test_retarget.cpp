@@ -108,7 +108,9 @@ SourceAnim to_y_up(SourceAnim s) {
 TEST(retarget_a_pose_source_rt_t1) {
     BoneMap map;
     SourceAnim src = a_pose_source(12, map);
-    RetargetResult r = retarget(skel(), src, map);
+    RetargetOptions opt;
+    opt.remove_spikes = false;  // the test poses jump on purpose
+    RetargetResult r = retarget(skel(), src, map, opt);
     CHECK_EQ(r.clip.fps, 30);
     double worst = 0;
     for (int f = 0; f < 12; ++f)
@@ -197,7 +199,9 @@ TEST(retarget_bvh_round_trip_rt_t4) {
     CHECK(read_bvh_source(text, src, err));
     BoneMap map;
     for (int j = 0; j < int(src.joints.size()); ++j) map[src.joints[j].name] = j;  // identity mapping
-    RetargetResult r = retarget(s, src, map);
+    RetargetOptions opt;
+    opt.remove_spikes = false;  // the test poses jump on purpose
+    RetargetResult r = retarget(s, src, map, opt);
     // BVH frame 0 is the rest reference, so clip frame f is retargeted frame f + 1.
     double worst = 0;
     for (int f = 0; f <= 10; ++f)
@@ -235,6 +239,19 @@ TEST(retarget_tables_pick_the_rig) {
     CHECK_EQ(tables[1].bones["mKneeRight"][0], std::string("calf_r"));
     CHECK_EQ(tables[3].bones["mWristRight"][0], std::string("DEF-hand.R"));
     CHECK_EQ(tables[4].hint, std::string("mixamorig"));
+
+    // A CMU conversion (cgspeed names: LHipJoint, LeftHandIndex1, LThumb) picks the CMU table, not Mixamo,
+    // and the thumbs map to their own sides.
+    SourceAnim cmu;
+    for (const char* n : {"Hips", "LHipJoint", "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RHipJoint", "RightUpLeg",
+                          "RightLeg", "RightFoot", "RightToeBase", "LowerBack", "Spine", "Spine1", "Neck", "Neck1", "Head",
+                          "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand", "LeftFingerBase", "LeftHandIndex1", "LThumb",
+                          "RightShoulder", "RightArm", "RightForeArm", "RightHand", "RightFingerBase", "RightHandIndex1", "RThumb"})
+        cmu.joints.push_back({n, -1, {}, {}, 1});
+    CHECK_EQ(tables[best_rig_table(tables, cmu, map)].name, std::string("CMU / Rokoko BVH"));
+    CHECK_EQ(cmu.joints[map["mHandThumb1Left"]].name, std::string("LThumb"));
+    CHECK_EQ(cmu.joints[map["mHandThumb1Right"]].name, std::string("RThumb"));
+    CHECK_EQ(cmu.joints[map["mHandIndex1Right"]].name, std::string("RightHandIndex1"));
 }
 
 TEST(retarget_gltf_reads_embedded_animation) {

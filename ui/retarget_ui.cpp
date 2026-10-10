@@ -80,6 +80,10 @@ void retarget_settings_ui(RetargetOptions& opt, FitOptions& fit, bool& lock_feet
     ImGui::SameLine();
     ImGui::Checkbox("Clean up foot sliding", &lock_feet);
     ImGui::SetItemTooltip("Holds planted feet still with leg IK where the source had them on the ground");
+    ImGui::SameLine();
+    ImGui::Checkbox("Remove spikes", &opt.remove_spikes);
+    ImGui::SetItemTooltip("Rebuilds capture glitches of a frame or few (a foot that flips for one frame) from the frames "
+                          "around them; real motion stays");
     if (heel_toe && to_ground) {
         ImGui::BeginDisabled(!lock_feet);  // a row of its own: beside the two above it runs past the dialog's edge
         ImGui::Checkbox("Heel and toe", heel_toe);
@@ -258,9 +262,9 @@ void App::draw_retarget_dialog() {
             ImGui::PushID(sl.c_str());
             if (ImGui::BeginCombo("##src", j >= 0 ? ui.src.joints[j].name.c_str() : "(none)", ImGuiComboFlags_HeightLarge)) {
                 if (ImGui::Selectable("(none)", j < 0)) ui.map.erase(sl), ui.table = -1;
-                for (int k = 0; k < int(ui.src.joints.size()); ++k) {  // source files can repeat a joint name
-                    ImGui::PushID(k);
-                    if (ImGui::Selectable(ui.src.joints[k].name.c_str(), k == j)) ui.map[sl] = k, ui.table = -1;
+                for (int ji = 0; ji < int(ui.src.joints.size()); ++ji) {  // source files can repeat a joint name
+                    ImGui::PushID(ji);
+                    if (ImGui::Selectable(ui.src.joints[ji].name.c_str(), ji == j)) ui.map[sl] = ji, ui.table = -1;
                     ImGui::PopID();
                 }
                 ImGui::EndCombo();

@@ -2,6 +2,24 @@
 
 All notable changes to Viewport Avatar Toolset are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-09
+
+### Added
+
+- **Edit → Time → Crop to Range**: keep only the frames of the marked range, starting at frame 0, with the pose held at both cuts; for cutting one move out of a long motion capture take.
+- **Remove spikes** in the Retarget dialog (on by default) and **Edit → Remove Spikes**: motion capture glitches of a frame or two (a foot that flips for one frame) are rebuilt from the frames around them; quick real motion stays.
+- **Tools → Loop Tools → Move to Origin**: puts the hips' average position over the loop on the origin, with IK targets and pins held in the world, for motion capture recorded away from it.
+- **Make Loop Seamless** can spread its correction, of the value and the slope, over the whole loop (**Blend → whole loop**, the new default), so a motion capture loop no longer hitches at the seam.
+
+### Fixed
+
+- **File > Import BVH...**, opening a `.bvh` or dropping one on the window refused a BVH from another rig (CMU, Mixamo and other mocap) with "the root joint is not the hip (mPelvis)". Such a file now opens in **File > Import Animation (Retarget)...** to be mapped onto SL's skeleton.
+- Retarget picked the Mixamo table for CMU motion capture converted to BVH (the cgspeed joint names). The CMU table now recognises those files, thumbs and index fingers included.
+- **Remove Hip Travel** with **Loop** off took out only a straight line from the first frame to the last, so a take that paces back and forth or turns stayed where it was. It now follows the hips' path over the whole take and leaves only the sway.
+- **Remove Hip Travel** left the IK targets of planted feet (from **Clean up foot sliding**) behind, so the legs stretched for them and stumbled. They now move with the hips, as with **Add Travel Forward**.
+- **Make Loop Seamless** measured the seam before adding its keys at **Loop in** and **Loop out**, and adding them reshaped the curve, so the ends could still miss each other. Keys added by the loop tools, the curve filters and motion capture clean-up now never change a curve's shape.
+- Builds without warnings under macOS clang (struct initializers, enum conversions; from SoapStorm).
+
 ## [0.2.0] - 2026-10-02
 
 ### Added
@@ -147,6 +165,7 @@ Initial public release, for Linux (x86_64) and 64-bit Windows.
 - Control presets: Industry (Maya-style), Blender, QAvimator and Second Life.
 - Built-in help with contents and search, a controls window, two themes, interface scaling, autosave with crash recovery, file associations, and command-line options for files, presets, views, lights, reference and listing media, tool windows, screenshots and benchmarks.
 
+[0.2.1]: ../../releases/tag/v0.2.1
 [0.2.0]: ../../releases/tag/v0.2.0
 [0.1.1]: ../../releases/tag/v0.1.1
 [0.1.0]: ../../releases/tag/v0.1.0

@@ -88,7 +88,7 @@ struct BoneHeatOptions {
 struct BoneHeatStats {
     int vertices = 0;          // welded vertices solved
     int hidden = 0;            // vertices whose nearest bone is behind the surface: they take heat from their neighbours
-    int far = 0;               // vertices out of reach of every bone (BoneHeatOptions::reach): likewise
+    int out_of_reach = 0;      // vertices out of reach of every bone (BoneHeatOptions::reach): likewise
     int unreached = 0;         // vertices in pieces no bone can see: heated by their nearest bones regardless
     int pieces = 0;            // connected pieces
     int flips = 0;             // Robust: intrinsic flips

@@ -287,7 +287,11 @@ static bool load_fbx(const std::vector<std::uint8_t>& bytes, const std::string& 
     ufbx_matrix up = up_axis;
     if (remap) {
         const Quat q = Quat::axis_angle({0, 0, 1}, remap->turn * kPi / 2);
-        const ufbx_transform t{{0, 0, 0}, {q.x, q.y, q.z, q.w}, {1, 1, 1}};
+        ufbx_transform t = ufbx_identity_transform;
+        t.rotation.x = q.x;
+        t.rotation.y = q.y;
+        t.rotation.z = q.z;
+        t.rotation.w = q.w;
         const ufbx_matrix m = ufbx_transform_to_matrix(&t);
         up = ufbx_matrix_mul(&m, &up_axis);
     }
@@ -472,7 +476,7 @@ static bool load_fbx(const std::vector<std::uint8_t>& bytes, const std::string& 
                         if (at != sum.end()) at->second += sw.weight;
                         else sum.emplace_back(node_i, sw.weight);
                     }
-                    std::stable_sort(sum.begin(), sum.end(), [](auto& a, auto& c) { return a.second > c.second; });
+                    std::stable_sort(sum.begin(), sum.end(), [](auto& a, auto& rhs) { return a.second > rhs.second; });
                     if (sum.size() > 4) sum.resize(4);
                     double total = 0;
                     for (auto& e : sum) total += e.second;

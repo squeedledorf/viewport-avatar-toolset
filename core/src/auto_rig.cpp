@@ -928,9 +928,9 @@ ScratchFit fit_scratch_joints(const Skeleton& skel, const DaeModel& placed, cons
             normal = axis.cross(across).normalized();
             // A hand as thick as it is wide (a mitten, a paw, a rounded blob) has no palm to go by: SL's way, below.
             auto spread = [&](const Vec3& v) {
-                double s = 0;
-                for (const Vec3& p : hand) s += ((p - wrist).dot(v)) * ((p - wrist).dot(v));
-                return s;
+                double sum = 0;
+                for (const Vec3& p : hand) sum += ((p - wrist).dot(v)) * ((p - wrist).dot(v));
+                return sum;
             };
             flat = spread(across) > 1.5 * spread(normal);
             double reach = 0;
@@ -1071,12 +1071,12 @@ ScratchFit fit_scratch_joints(const Skeleton& skel, const DaeModel& placed, cons
         const Vec3 delta = pin->second - at->second;
         std::vector<int> todo{n};
         while (!todo.empty()) {
-            const int k = todo.back();
+            const int node = todo.back();
             todo.pop_back();
-            if (k != n && marked.count(skel[k].name)) continue;
-            if (auto it = j.find(skel[k].name); it != j.end()) it->second += delta;
-            if (auto it = fit.tips.find(skel[k].name); it != fit.tips.end()) it->second += delta;
-            for (int c : skel[k].children) todo.push_back(c);
+            if (node != n && marked.count(skel[node].name)) continue;
+            if (auto it = j.find(skel[node].name); it != j.end()) it->second += delta;
+            if (auto it = fit.tips.find(skel[node].name); it != fit.tips.end()) it->second += delta;
+            for (int c : skel[node].children) todo.push_back(c);
         }
     }
     return fit;
@@ -1220,17 +1220,17 @@ void share_with_volumes(const Skeleton& skel, DaeModel& m) {
                 w.push_back({j, x});
                 continue;
             }
-            std::vector<std::pair<int, double>> near;
+            std::vector<std::pair<int, double>> touching;
             double most = 0, sum = 0;
             for (int vol : of[size_t(j)]) {
                 const CollisionVolume& cv = skel.volumes()[size_t(vol - root - 1)];
                 const Vec3 local = m.binds[size_t(vol)].inverse().apply(p);
                 const double r = Vec3{local.x / cv.scale.x, local.y / cv.scale.y, local.z / cv.scale.z}.length();
                 const double f = std::clamp(2 - r, 0.0, 1.0);
-                if (f > 0) near.push_back({vol, f}), most = std::max(most, f), sum += f;
+                if (f > 0) touching.push_back({vol, f}), most = std::max(most, f), sum += f;
             }
             w.push_back({j, x * (1 - most)});
-            for (const auto& [vol, f] : near) w.push_back({vol, x * most * f / sum});
+            for (const auto& [vol, f] : touching) w.push_back({vol, x * most * f / sum});
         }
         keep_four(w, root, 0.005, &m.joints[size_t(v) * 4], &m.weights[size_t(v) * 4]);
     }
@@ -1332,7 +1332,7 @@ bool weigh_scratch_rig(const Skeleton& skel, DaeModel& m, ScratchRig& rig, const
         std::string line = names + ": bone heat, " + std::to_string(st.vertices) + " vertices in " + std::to_string(st.pieces) +
                            (st.pieces == 1 ? " piece" : " pieces");
         if (st.hidden) line += "; " + std::to_string(st.hidden) + " behind a fold or a layer took their weights from around them";
-        if (st.far) line += "; " + std::to_string(st.far) + " out in the air (streamers, hems) took them from where they hang";
+        if (st.out_of_reach) line += "; " + std::to_string(st.out_of_reach) + " out in the air (streamers, hems) took them from where they hang";
         if (st.unreached)
             line += "; " + std::to_string(st.unreached) +
                     " in pieces no bone can see (claws, eyes, buckles, shut inside) were warmed by their nearest bones regardless";

@@ -142,7 +142,9 @@ TEST(fbx_skeleton_animation_reads_like_bvh) {
     // And through the retarget, identity mapping, the clip comes back (frame 0 is the BVH rest frame).
     BoneMap map;
     for (int j = 0; j < int(fbx.joints.size()); ++j) map[fbx.joints[j].name] = j;
-    RetargetResult r = retarget(s, fbx, map);
+    RetargetOptions opt;
+    opt.remove_spikes = false;  // the test poses jump on purpose
+    RetargetResult r = retarget(s, fbx, map, opt);
     double worst = 0;
     for (int f = 0; f <= 8; ++f)
         for (auto* name : body)

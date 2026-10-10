@@ -465,10 +465,10 @@ std::vector<LintFinding> lint_clip(const Skeleton& skel, const Clip& clip, const
                             auto keys = [&](double tol) {
                                 std::size_t k = 0;
                                 for (int n : nodes) {
-                                    std::vector<Quat> r;
+                                    std::vector<Quat> rots;
                                     std::vector<Vec3> p;
-                                    for (const Pose& f : fk) r.push_back(f.rot[n]), p.push_back(f.offset[n]);
-                                    k += reduce_rotation_keys(r, tol, gap).size();
+                                    for (const Pose& f : fk) rots.push_back(f.rot[n]), p.push_back(f.offset[n]);
+                                    k += reduce_rotation_keys(rots, tol, gap).size();
                                     if (std::find(with_pos.begin(), with_pos.end(), n) != with_pos.end())
                                         k += reduce_position_keys(p, tol / 100, gap).size();
                                 }

@@ -72,12 +72,12 @@ void App::draw_context_menu() {
             any = true;
         }
         // Starter poses of this kind (hands are authored for the left side).
-        bool header = false, group = false;  // group: a category's submenu is open
+        bool opened = false, group = false;  // group: a category's submenu is open
         std::string category;
         for (const LibraryItem& it : builtin_poses(skel_)) {
             if (it.kind != kind) continue;
-            if (!header && ImGui::BeginMenu("Starter poses")) header = true;
-            else if (!header) break;
+            if (!opened && ImGui::BeginMenu("Starter poses")) opened = true;
+            else if (!opened) break;
             any = true;
             if (it.category != category) {  // a category's poses come together, in a submenu of its own
                 if (group) ImGui::EndMenu();
@@ -89,7 +89,7 @@ void App::draw_context_menu() {
             if (ImGui::MenuItem(it.name.c_str())) apply_library_item(it, mirrored);
         }
         if (group) ImGui::EndMenu();
-        if (header) ImGui::EndMenu();
+        if (opened) ImGui::EndMenu();
         if (!any) ImGui::TextDisabled("  (none saved yet)");
     };
     auto clips_of_kind = [&](const std::string& kind, const std::string& side) {

@@ -289,7 +289,7 @@ void App::draw_actor_body(int i, const std::vector<Xform>& globals, const SceneC
         if (key == kBodyIds[k]) b = k;
     if (b < 0) return;
     if (Body(b) == Body::SkeletonOnly) {  // drawn as bones: render_scene, or draw_world_extras
-        if (!edited) other_skeletons_.push_back({globals, a.colour, i});
+        if (!edited) other_skeletons_.push_back({globals, a.colour, i, true});
         return;
     }
     AvatarMesh* m = &mesh_;
@@ -326,7 +326,7 @@ int App::pick_actor(ImVec2 m) const {
                 if (!projector_.to_screen(k.a, hx, hy) || !projector_.to_screen(k.b, tx, ty)) continue;
                 const double abx = tx - hx, aby = ty - hy, apx = m.x - hx, apy = m.y - hy;
                 const double t = std::clamp((apx * abx + apy * aby) / std::max(abx * abx + aby * aby, 1e-9), 0.0, 1.0);
-                if (double d = std::hypot(apx - abx * t, apy - aby * t); d < 10 && d < best) best = d, hit = s.actor;
+                if (double dist = std::hypot(apx - abx * t, apy - aby * t); dist < 10 && dist < best) best = dist, hit = s.actor;
             }
         if (hit >= 0) return hit;
         best = 1e30;  // then the bodies, as in the app
@@ -697,10 +697,10 @@ void App::draw_actors_panel() {
         char buf[64];
         std::snprintf(buf, sizeof buf, "%s", pin_bone_filter_.c_str());
         if (filter_input("##bonefilter", "Filter bones...", buf, sizeof buf)) pin_bone_filter_ = buf;
-        auto matches = [&](const std::string& name) {
+        auto matches = [&](const std::string& bone_name) {
             auto low = [](char c) { return char(std::tolower(static_cast<unsigned char>(c))); };
-            return std::search(name.begin(), name.end(), pin_bone_filter_.begin(), pin_bone_filter_.end(),
-                               [&](char a, char b) { return low(a) == low(b); }) != name.end();
+            return std::search(bone_name.begin(), bone_name.end(), pin_bone_filter_.begin(), pin_bone_filter_.end(),
+                               [&](char a, char b) { return low(a) == low(b); }) != bone_name.end();
         };
         // Grouped as the Bones list's Show groups: body first, then hands, face and the rest.
         static const char* const groups[] = {"Body", "Hands", "Face", "Wings", "Tail", "Hind Limbs", "Groin", "Attachment Points"};

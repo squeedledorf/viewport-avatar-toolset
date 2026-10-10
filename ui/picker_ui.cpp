@@ -741,10 +741,10 @@ void App::draw_picker_panel() {
             ui.cycle = {};
         } else if (!ranked.empty()) {
             const int n = ui.cycle.click(m, ranked, 4 * u);
-            const std::string shown = mode == 2 ? "" : reveal_node(n);
+            const std::string reveal_msg = mode == 2 ? "" : reveal_node(n);
             select_nodes({n}, mode);
             status(bone_label(n) + (ranked.size() > 1 ? "  (click again for the one underneath)" : "") +
-                   (shown.empty() ? "" : "  (" + shown + ")"));
+                   (reveal_msg.empty() ? "" : "  (" + reveal_msg + ")"));
         } else if (mode == 0) {
             clear_selection();
             ui.cycle = {};

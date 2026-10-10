@@ -214,13 +214,13 @@ void App::draw_prop_grid(std::vector<PropLibraryItem>& items, bool user) {
         } else {  // generic prop icon until the thumbnail lands (or when the mesh is missing)
             float r = thumb * 0.22f;
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
-            ImU32 col = ImGui::GetColorU32(ImGuiCol_TextDisabled);
-            dl->AddQuad(ImVec2(c.x, c.y - r), ImVec2(c.x + r, c.y - r / 2), ImVec2(c.x, c.y), ImVec2(c.x - r, c.y - r / 2), col, 1.5f);
-            dl->AddLine(ImVec2(c.x - r, c.y - r / 2), ImVec2(c.x - r, c.y + r / 2), col, 1.5f);
-            dl->AddLine(ImVec2(c.x + r, c.y - r / 2), ImVec2(c.x + r, c.y + r / 2), col, 1.5f);
-            dl->AddLine(ImVec2(c.x, c.y), ImVec2(c.x, c.y + r), col, 1.5f);
-            dl->AddLine(ImVec2(c.x - r, c.y + r / 2), ImVec2(c.x, c.y + r), col, 1.5f);
-            dl->AddLine(ImVec2(c.x + r, c.y + r / 2), ImVec2(c.x, c.y + r), col, 1.5f);
+            ImU32 color = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+            dl->AddQuad(ImVec2(c.x, c.y - r), ImVec2(c.x + r, c.y - r / 2), ImVec2(c.x, c.y), ImVec2(c.x - r, c.y - r / 2), color, 1.5f);
+            dl->AddLine(ImVec2(c.x - r, c.y - r / 2), ImVec2(c.x - r, c.y + r / 2), color, 1.5f);
+            dl->AddLine(ImVec2(c.x + r, c.y - r / 2), ImVec2(c.x + r, c.y + r / 2), color, 1.5f);
+            dl->AddLine(ImVec2(c.x, c.y), ImVec2(c.x, c.y + r), color, 1.5f);
+            dl->AddLine(ImVec2(c.x - r, c.y + r / 2), ImVec2(c.x, c.y + r), color, 1.5f);
+            dl->AddLine(ImVec2(c.x + r, c.y + r / 2), ImVec2(c.x, c.y + r), color, 1.5f);
         }
         ImVec4 clip(p0.x, b.y, p0.x + cell, p0.y + cell_h);
         dl->AddText(ImGui::GetFont(), font, ImVec2(p0.x + 3, b.y + 3), ImGui::GetColorU32(ImGuiCol_Text), p.name.c_str(),
@@ -549,11 +549,11 @@ void App::draw_name_prompt() {
         std::vector<int> bones;
         std::string kind = selection_.empty() ? "pose" : "selection";
         if (name_action_ == NameAction::SavePartPose) {
-            const std::string kind = context_part_.kind == PartKind::Arm ? "arm" : context_part_.kind == PartKind::Hand ? "hand"
+            const std::string part_kind = context_part_.kind == PartKind::Arm ? "arm" : context_part_.kind == PartKind::Hand ? "hand"
                                    : context_part_.kind == PartKind::Leg ? "leg" : context_part_.kind == PartKind::Wing ? "wing"
                                    : context_part_.kind == PartKind::HindLeg ? "hindleg" : context_part_.kind == PartKind::Tail ? "tail"
                                    : "head";
-            LibraryItem item = make_pose(skel_, pose_, context_part_.bones, kind, context_part_.side, false);
+            LibraryItem item = make_pose(skel_, pose_, context_part_.bones, part_kind, context_part_.side, false);
             item.name = name_buf_;
             store_library_item(std::move(item));
             status("Saved " + context_part_.label + " pose " + std::string(name_buf_));
@@ -566,12 +566,12 @@ void App::draw_name_prompt() {
                     tracks.clear();
                     for (auto& [name, t] : doc_.clip().curves) tracks.push_back(name);
                 }
-                const std::string kind = context_part_.kind == PartKind::Arm ? "arm" : context_part_.kind == PartKind::Hand ? "hand"
+                const std::string part_kind = context_part_.kind == PartKind::Arm ? "arm" : context_part_.kind == PartKind::Hand ? "hand"
                                        : context_part_.kind == PartKind::Leg ? "leg" : context_part_.kind == PartKind::Wing ? "wing"
                                        : context_part_.kind == PartKind::HindLeg ? "hindleg" : context_part_.kind == PartKind::Tail ? "tail"
                                        : context_part_.kind == PartKind::Head ? "head"
                                        : context_part_.kind == PartKind::Torso ? "torso" : "pose";
-                LibraryItem item = make_clip(doc_.clip(), tracks, a, b, kind, context_part_.side);
+                LibraryItem item = make_clip(doc_.clip(), tracks, a, b, part_kind, context_part_.side);
                 item.name = name_buf_;
                 store_library_item(std::move(item));
                 status("Saved " + context_part_.label + " clip " + std::string(name_buf_));

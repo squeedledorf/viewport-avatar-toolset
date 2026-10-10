@@ -135,3 +135,13 @@ TEST(bvh_rejects_garbage) {
     for (int i = 0; i < 10000; ++i) deep += " JOINT j {";
     CHECK(!import_bvh(skel(), deep).ok);
 }
+
+// Another rig's BVH (CMU's Hips root) is flagged so the plain import can hand it to the retarget importer;
+// a broken file is not.
+TEST(bvh_flags_a_foreign_rig) {
+    auto r = import_bvh(skel(), "HIERARCHY ROOT Hips { OFFSET 0 0 0 CHANNELS 3 Zrotation Yrotation Xrotation"
+                                " End Site { OFFSET 0 1 0 } } MOTION Frames: 1 Frame Time: 0.1 0 0 0");
+    CHECK(!r.ok);
+    CHECK(r.foreign_rig);
+    CHECK(!import_bvh(skel(), "HIERARCHY ROOT hip { OFFSET 0 0").foreign_rig);
+}

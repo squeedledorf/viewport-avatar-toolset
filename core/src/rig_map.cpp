@@ -1125,9 +1125,9 @@ RigMap Suggest::run() {
         else if (has({"lowerback"}) || (has({"lower"}) && has({"back"})))
             volume = "LOWER_BACK", under = {"mTorso", "mPelvis"};
         if (volume.empty()) continue;
-        int from = bones[i].parent;  // where it hangs: the volume's own part of the body, not a hand's "pec" or a tail's "butt"
-        while (from >= 0 && map.bones[from].target.empty()) from = bones[from].parent;
-        if (from < 0 || std::find(under.begin(), under.end(), map.bones[from].target) == under.end())
+        int anchor = bones[i].parent;  // where it hangs: the volume's own part of the body, not a hand's "pec" or a tail's "butt"
+        while (anchor >= 0 && map.bones[anchor].target.empty()) anchor = bones[anchor].parent;
+        if (anchor < 0 || std::find(under.begin(), under.end(), map.bones[anchor].target) == under.end())
             continue;
         set(i, volume, 70, "soft body: SL's " + volume + " collision volume (moves with SL's avatar physics)");
     }
@@ -1192,7 +1192,7 @@ std::vector<std::string> check_rig_map(const Skeleton& skel, const std::vector<S
             if (k == a) return true;
         return false;
     };
-    auto near = [&](int a, int b) { return (bones[size_t(a)].bind.pos - bones[size_t(b)].bind.pos).length() <= 0.05 * size; };
+    auto close_to = [&](int a, int b) { return (bones[size_t(a)].bind.pos - bones[size_t(b)].bind.pos).length() <= 0.05 * size; };
     for (int i = 0; i < n; ++i) {
         const int j = joint[size_t(i)];
         int from = bones[size_t(i)].parent;
@@ -1223,11 +1223,11 @@ std::vector<std::string> check_rig_map(const Skeleton& skel, const std::vector<S
         // A bone that sits with another on its joint goes with it (an IK foot at the ankle merges there).
         if (!out[size_t(i)].empty())
             for (int a : on[j])
-                if (a != i && out[size_t(a)].empty() && near(a, i)) out[size_t(i)].clear();
+                if (a != i && out[size_t(a)].empty() && close_to(a, i)) out[size_t(i)].clear();
         // Weighted bones on one joint sit together (which of two apart is wrong, only the user knows: both show).
         if (bones[size_t(i)].weight <= 0 || !out[size_t(i)].empty()) continue;
         for (int a : on[j])
-            if (a != i && bones[size_t(a)].weight > 0 && !near(a, i)) {
+            if (a != i && bones[size_t(a)].weight > 0 && !close_to(a, i)) {
                 out[size_t(i)] = "shares " + skel[j].name + " with " + bones[size_t(a)].name + " but does not sit with it";
                 break;
             }
@@ -1918,11 +1918,11 @@ bool parse_rig_map_json(std::string_view text, RigMap& out, std::string& err) {
         if (const Json* sc = j.find("scratch"); sc && sc->is_object()) {
             ScratchRig& r = out.scratch;
             r = {};
-            auto vec = [](const Json& a, Vec3& v) {
+            auto vec = [](const Json& a, Vec3& dst) {
                 if (!a.is_array() || a.arr.size() < 3) return false;
                 for (int k = 0; k < 3; ++k)
                     if (!a.arr[size_t(k)].is_number() || !std::isfinite(a.arr[size_t(k)].num) || std::fabs(a.arr[size_t(k)].num) > 1e4) return false;
-                v = {a.arr[0].num, a.arr[1].num, a.arr[2].num};
+                dst = {a.arr[0].num, a.arr[1].num, a.arr[2].num};
                 return true;
             };
             if (const Json* m = sc->find("markers"); m && m->is_object())
@@ -1945,13 +1945,13 @@ bool parse_rig_map_json(std::string_view text, RigMap& out, std::string& err) {
                     if (from.is_string()) r.transfer[part] = from.str;
             if (const Json* jn = sc->find("joints"); jn && jn->is_object())
                 for (const auto& [name, a] : jn->obj) {
-                    Vec3 v;
-                    if (vec(a, v)) r.joints[name] = v;
+                    Vec3 pos;
+                    if (vec(a, pos)) r.joints[name] = pos;
                 }
             if (const Json* pn = sc->find("pins"); pn && pn->is_object())
                 for (const auto& [name, a] : pn->obj) {
-                    Vec3 v;
-                    if (vec(a, v)) r.pins[name] = v;
+                    Vec3 pos;
+                    if (vec(a, pos)) r.pins[name] = pos;
                 }
             const Json* nv = sc->find("vertices");
             const Json* w = sc->find("weights");
@@ -1962,21 +1962,21 @@ bool parse_rig_map_json(std::string_view text, RigMap& out, std::string& err) {
                     const int idx = std::atoi(node.c_str());
                     if (!list.is_array() || idx < 0) continue;
                     for (size_t i = 0; i + 1 < list.arr.size(); i += 2) {
-                        const Json &v = list.arr[i], &x = list.arr[i + 1];
-                        if (v.is_number() && x.is_number() && v.num >= 0 && v.num < n && std::isfinite(x.num) && x.num > 0)
-                            per[size_t(v.num)].push_back({idx, x.num});
+                        const Json &vj = list.arr[i], &x = list.arr[i + 1];
+                        if (vj.is_number() && x.is_number() && vj.num >= 0 && vj.num < n && std::isfinite(x.num) && x.num > 0)
+                            per[size_t(vj.num)].push_back({idx, x.num});
                     }
                 }
                 r.wjoints.assign(size_t(n) * 4, -1);
                 r.weights.assign(size_t(n) * 4, 0.f);
-                for (int v = 0; v < n; ++v) {
-                    auto& list = per[size_t(v)];
-                    std::sort(list.begin(), list.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+                for (int vtx = 0; vtx < n; ++vtx) {
+                    auto& list = per[size_t(vtx)];
+                    std::sort(list.begin(), list.end(), [](const auto& a, const auto& rhs) { return a.second > rhs.second; });
                     double sum = 0;
                     for (size_t k = 0; k < list.size() && k < 4; ++k) sum += list[k].second;
                     for (size_t k = 0; k < 4 && k < list.size() && sum > 0; ++k) {
-                        r.wjoints[size_t(v) * 4 + k] = list[k].first;  // the rest stay -1: mRoot, set on load
-                        r.weights[size_t(v) * 4 + k] = float(list[k].second / sum);
+                        r.wjoints[size_t(vtx) * 4 + k] = list[k].first;  // the rest stay -1: mRoot, set on load
+                        r.weights[size_t(vtx) * 4 + k] = float(list[k].second / sum);
                     }
                 }
             }

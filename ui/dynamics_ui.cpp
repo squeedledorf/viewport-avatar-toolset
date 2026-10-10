@@ -226,8 +226,8 @@ void App::draw_dynamics_panel() {
             }
             if (ImGui::IsItemDeactivated() && doc_.history.is_open() && doc_.history.commit(step, clip)) mark_dirty();
         };
-        auto preset = [&](const char* label, const char* kind) {
-            if (ImGui::Button(label)) {
+        auto preset = [&](const char* btn_label, const char* kind) {
+            if (ImGui::Button(btn_label)) {
                 DynChain q = dyn_preset(kind, d.root, d.length);
                 edit("Dynamics Preset", [&](Clip& c) {
                     DynChain& t = c.dynamics[i];

@@ -46,6 +46,90 @@ TEST(time_insert_moves_keys_loop_and_pins) {
     CHECK(std::fabs(curve_euler(c, "mElbowLeft", 25).z - 20) < 1e-9);
 }
 
+TEST(time_crop_keeps_only_the_range) {
+    Clip c = keyed({0, 10, 20, 30});
+    const double v15 = curve_euler(c, "mElbowLeft", 15).z, v27 = curve_euler(c, "mElbowLeft", 27).z;
+    c.pins.push_back(Pin{"mWristLeft", "mWristLeft", "", 0, 5});     // held only before the crop: goes
+    c.pins.push_back(Pin{"mWristRight", "mWristRight", "", 5, 35});  // held across it: clipped
+    c.pins.push_back(Pin{"mAnkleLeft", "mAnkleLeft", "", 20, -1});   // to the end
+    crop_time(c, 15, 27);
+    CHECK((frames_of(c) == std::vector<double>{0, 5, 12}));  // edge keys at 15 and 27, 20 -> 5
+    CHECK_EQ(c.end_frame, 12);
+    CHECK(std::fabs(curve_euler(c, "mElbowLeft", 0).z - v15) < 1e-9);  // the pose at the cuts is kept
+    CHECK(std::fabs(curve_euler(c, "mElbowLeft", 12).z - v27) < 1e-9);
+    CHECK_EQ(c.loop_in, 0);  // 10 was before the crop
+    CHECK_EQ(c.loop_out, 12);
+    CHECK_EQ(c.pins.size(), size_t(2));
+    CHECK_EQ(c.pins[0].from, 0);
+    CHECK_EQ(c.pins[0].to, 12);
+    CHECK_EQ(c.pins[1].from, 5);
+    CHECK_EQ(c.pins[1].to, -1);
+    crop_time(c, 5, 5);  // an empty range changes nothing
+    CHECK_EQ(c.end_frame, 12);
+}
+
+TEST(time_crop_keeps_the_curve_shape_and_the_timeline) {
+    // Sparse automatic Bezier keys: the cut keys must not reshape what is kept (no new ease, same slopes).
+    Clip c;
+    c.fps = 30, c.end_frame = 60;
+    for (auto [f, v] : {std::pair{0, 0.0}, {20, 10.0}, {40, 30.0}, {60, 5.0}}) c.curves["mElbowLeft"]["rot_z"].set_key(f, v);
+    const FCurve before = c.curves["mElbowLeft"]["rot_z"];
+    c.audio = AudioTrack{};
+    c.audio->offset = 1.0;
+    c.reference = Reference{};
+    c.reference->frame_offset = 20;
+    c.lip_sync = LipSync{};
+    c.lip_sync->from = 0, c.lip_sync->to = 60;
+    c.lip_sync->cues = {{0, "X"}, {10, "A"}, {30, "B"}, {50, "C"}};
+    c.lip_sync->level.assign(61, 0.0);
+    for (int f = 0; f <= 60; ++f) c.lip_sync->level[f] = f;
+    crop_time(c, 15, 45);
+    const FCurve& after = c.curves["mElbowLeft"]["rot_z"];
+    double worst = 0;
+    for (double f = 15; f <= 45; f += 0.25) worst = std::max(worst, std::fabs(after.evaluate(f - 15) - before.evaluate(f)));
+    CHECK(worst < 1e-6);
+    CHECK(std::fabs(c.audio->offset - 0.5) < 1e-12);  // 15 frames at 30 fps earlier
+    CHECK_EQ(c.reference->frame_offset, 5);
+    CHECK_EQ(c.lip_sync->cues.size(), size_t(2));  // A holds at 15, so it starts the track; C is past the crop
+    CHECK_EQ(c.lip_sync->cues[0].shape, std::string("A"));
+    CHECK_EQ(c.lip_sync->cues[0].frame, 0);
+    CHECK_EQ(c.lip_sync->cues[1].frame, 15);
+    CHECK_EQ(c.lip_sync->from, 0);
+    CHECK_EQ(c.lip_sync->to, 30);
+    CHECK_EQ(c.lip_sync->level.size(), size_t(31));
+    CHECK(c.lip_sync->level[0] == 15);
+
+    // Cuts on existing keys, where the kept end keys lose a neighbour.
+    Clip d;
+    d.fps = 30, d.end_frame = 30;
+    for (auto [f, v] : {std::pair{0, 0.0}, {10, 10.0}, {20, 30.0}, {30, 5.0}}) d.curves["mElbowLeft"]["rot_z"].set_key(f, v);
+    const FCurve d0 = d.curves["mElbowLeft"]["rot_z"];
+    crop_time(d, 10, 20);
+    worst = 0;
+    for (double f = 10; f <= 20; f += 0.25) worst = std::max(worst, std::fabs(d.curves["mElbowLeft"]["rot_z"].evaluate(f - 10) - d0.evaluate(f)));
+    CHECK(worst < 1e-6);
+
+    // Cuts beyond the keys, around a Spline key whose outer handle is not flat: the held value stays held.
+    Clip e;
+    e.fps = 30, e.end_frame = 60;
+    FCurve& ec = e.curves["mElbowLeft"]["rot_z"];
+    for (auto [f, v] : {std::pair{20, 0.0}, {30, 10.0}, {40, 4.0}}) ec.set_key(f, v);
+    for (int i : {0, 2}) ec.apply_tangent(i, Tangent::Spline);
+    const FCurve e0 = ec;
+    crop_time(e, 10, 50);
+    worst = 0;
+    for (double f = 10; f <= 50; f += 0.25) worst = std::max(worst, std::fabs(e.curves["mElbowLeft"]["rot_z"].evaluate(f - 10) - e0.evaluate(f)));
+    CHECK(worst < 1e-6);
+
+    // A lip-sync track wholly outside the range goes.
+    Clip g = keyed({0, 10, 20, 30});
+    g.lip_sync = LipSync{};
+    g.lip_sync->from = 0, g.lip_sync->to = 5;
+    g.lip_sync->cues = {{0, "A"}};
+    crop_time(g, 10, 20);
+    CHECK(!g.lip_sync);
+}
+
 TEST(time_remove_closes_the_gap) {
     Clip c = keyed({0, 10, 20, 30});
     c.pins.push_back(Pin{"mWristLeft", "mWristLeft", "", 12, 18});  // held only inside the cut: goes

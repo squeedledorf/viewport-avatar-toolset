@@ -19,7 +19,7 @@
 namespace vats {
 
 struct VmcState;
-struct Skeleton;
+class Skeleton;
 struct Shape;
 
 struct FaceTable {

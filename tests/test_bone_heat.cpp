@@ -220,7 +220,7 @@ TEST(bone_heat_leaves_a_streamer_out_of_reach_on_the_bone_it_hangs_from) {
     BoneHeatOptions o;
     o.reach = 0.25;
     CHECK(bone_heat(pos, idx, range(0, nv), bones, 99, o, j, w, &st));
-    CHECK(st.far > 0);
+    CHECK(st.out_of_reach > 0);
     for (std::uint32_t v = 0; v < nv; ++v) CHECK_NEAR(weight_of(j, w, v, 7), 1, 1e-4);
 }
 

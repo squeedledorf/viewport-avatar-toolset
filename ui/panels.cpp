@@ -347,9 +347,9 @@ void App::draw_bones_panel() {
                                                                      (b_min.y + b_max.y) * 0.5f));
         if (reveal_now && i == prim) ImGui::SetScrollHereY(0.5f);
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-            const std::string shown = reveal_node(i);  // a bone picked here shows in the view
+            const std::string reveal_msg = reveal_node(i);  // a bone picked here shows in the view
             select(i, ImGui::GetIO().KeyShift), bones_clicked_ = true;
-            if (!shown.empty()) status(shown);
+            if (!reveal_msg.empty()) status(reveal_msg);
         }
         if (ImGui::IsItemHovered())
             ImGui::SetItemTooltip("%s\n%s%s%s", bone_label(i).c_str(), kCategories[n.volume ? 8 : int(n.category)],
@@ -827,7 +827,7 @@ void App::draw_timeline_panel() {
     ImVec2 m = ImGui::GetIO().MousePos;
     const bool strip_hovered = ImGui::IsItemHovered();
     const float ytop = origin.y + ruler, ybot = origin.y + height;
-    auto near = [&](float x, float ya, float yb) { return strip_hovered && std::fabs(m.x - x) < 7 && m.y >= ya && m.y <= yb; };
+    auto on_handle = [&](float x, float ya, float yb) { return strip_hovered && std::fabs(m.x - x) < 7 && m.y >= ya && m.y <= yb; };
     const bool plain = !ImGui::GetIO().KeyShift && !ImGui::GetIO().KeyCtrl;
     auto flag = [&](int which, int fr) {
         float x = x_of(fr);
@@ -841,7 +841,7 @@ void App::draw_timeline_panel() {
     };
     auto ease_mark = [&](int which, double fr) {
         float x = x_of(fr);
-        bool hot = dragging_handle == which || (plain && near(x, ybot - 12, ybot));
+        bool hot = dragging_handle == which || (plain && on_handle(x, ybot - 12, ybot));
         dl->AddTriangleFilled(ImVec2(x, ybot - 9), ImVec2(x + 5, ybot - 1), ImVec2(x - 5, ybot - 1),
                               hot ? accent_colour() : IM_COL32(232, 168, 72, 190));
         return hot;
@@ -1007,9 +1007,9 @@ void App::draw_status_bar() {
                 ImGui::SameLine(0, 24);
                 hint((std::to_string(n) + " selected: keys, copy/paste and the graph apply to all of them").c_str());
             }
-            if (ui::Host::HostUi* h = host_.host_ui(); h && h->unread_notices() > 0) {  // spec 09 U4b: the unread badge
+            if (ui::Host::HostUi* hui = host_.host_ui(); hui && hui->unread_notices() > 0) {  // spec 09 U4b: the unread badge
                 ImGui::SameLine(0, 24);
-                if (ImGui::SmallButton(("Notifications (" + std::to_string(h->unread_notices()) + ")").c_str())) h->toggle_notices();
+                if (ImGui::SmallButton(("Notifications (" + std::to_string(hui->unread_notices()) + ")").c_str())) hui->toggle_notices();
             }
             draw_target_status();
             draw_check_badge();

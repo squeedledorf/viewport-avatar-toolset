@@ -1315,8 +1315,8 @@ void turn_vertices(DaeModel& model, int k) {
         Vec3 a = q.rotate({p[0], p[1], p[2]}), b = q.rotate({m[0], m[1], m[2]});
         for (int i = 0; i < 3; ++i) p[i] = float(a[i]), m[i] = float(b[i]);
     }
-    for (DaeShapeKey& k : model.shape_keys)  // the offsets turn with the vertices
-        for (std::vector<float>* d : {&k.dpos, &k.dnrm})
+    for (DaeShapeKey& sk : model.shape_keys)  // the offsets turn with the vertices
+        for (std::vector<float>* d : {&sk.dpos, &sk.dnrm})
             for (size_t i = 0; i + 2 < d->size(); i += 3) {
                 const Vec3 a = q.rotate({(*d)[i], (*d)[i + 1], (*d)[i + 2]});
                 for (int c = 0; c < 3; ++c) (*d)[i + c] = float(a[c]);
@@ -1453,9 +1453,9 @@ void settle_rig(DaeModel& model, const Skeleton& skel, const std::vector<bool>& 
     // The head's leaf joints (the classic eyes, mSkull) are rigged with the face, so they go with its convention.
     auto is_face = [&](int j) {
         if (j < 0 || j >= int(skel.size())) return false;
-        const std::string& n = skel[j].name;
-        return skel[j].category == Category::Face || n.rfind("mFace", 0) == 0 || n == "mEyeLeft" || n == "mEyeRight" ||
-               n == "mSkull";
+        const std::string& name = skel[j].name;
+        return skel[j].category == Category::Face || name.rfind("mFace", 0) == 0 || name == "mEyeLeft" ||
+               name == "mEyeRight" || name == "mSkull";
     };
     int body_pairs = 0, body_agree = 0;
     int face_pairs = 0, face_agree = 0;
