@@ -115,7 +115,7 @@ The code is in three parts: `core/` is the animation engine in plain C++20 with 
 ## Documentation
 
 - **Built-in help.** Press **F1** (**Help → Help Contents**) in the app for the full manual with contents and search. **Help → Controls** lists every key and mouse control of the active preset.
-- **The same pages in the repository:** [`docs/wiki/`](docs/wiki/vats.md), starting with [Installation](docs/wiki/installation.md), [First steps](docs/wiki/first-steps.md) and [Interface](docs/wiki/interface.md). Reference pages cover the [`.anim` format](docs/wiki/anim-format.md), the [project file format](docs/wiki/project-file-format.md), the [skeleton](docs/wiki/skeleton.md), [keyboard shortcuts](docs/wiki/keyboard-shortcuts.md) and the [command line](docs/wiki/command-line.md).
+- **The manual is the project's [wiki](https://github.com/squeedledorf/viewport-avatar-toolset/wiki)**, starting with [Installation](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/installation), [First steps](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/first-steps) and [Interface](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/interface). Reference pages cover the [`.anim` format](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/anim-format), the [project file format](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/project-file-format), the [skeleton](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/skeleton), [keyboard shortcuts](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/keyboard-shortcuts) and the [command line](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/command-line). The tutorials ship inside VATs (**Help → Tutorials**); **Help → Download the Manual for Offline Reading** brings the rest into the Help window too. The pages' source is [`docs/wiki/`](docs/wiki/), which the wiki is made from.
 - **Feature list by area:** [`docs/FEATURES.md`](docs/FEATURES.md).
 - **Changes:** [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -125,7 +125,7 @@ Not built yet, in no fixed order: a macOS build; video files as reference (a num
 
 ## Contributing
 
-Bug reports and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the layout of the code, the tests and the rules for changes. For a bug report, include the VATs version (**Help → About**), your system and graphics driver, the control preset, exact steps, and the `.vat` project or exported file where it matters; the [Troubleshooting](docs/wiki/troubleshooting.md) page has the full checklist.
+Bug reports and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the layout of the code, the tests and the rules for changes. For a bug report, include the VATs version (**Help → About**), your system and graphics driver, the control preset, exact steps, and the `.vat` project or exported file where it matters; the [Troubleshooting](https://github.com/squeedledorf/viewport-avatar-toolset/wiki/troubleshooting) page has the full checklist.
 
 ## Licence
 

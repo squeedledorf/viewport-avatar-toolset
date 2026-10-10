@@ -2,6 +2,18 @@
 
 All notable changes to Viewport Avatar Toolset are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-10
+
+### Added
+
+- Meshes and mesh bodies are drawn with their textures: picture files beside the model or packed inside it (`.glb`, `.fbx`, data URIs), from the UV set the material names, with cut-out (MASK) and see-through (BLEND) materials; the weight glow lies over them.
+- **Tools → Push Hands Out of the Body**: hands and forearms that sink into the mesh body shown (its own mesh, not SL's capsules) are moved back out through the arms, easing in and out around each contact.
+- The manual is the project's [wiki](https://github.com/squeedledorf/viewport-avatar-toolset/wiki). VATs ships with the tutorials; any other page opens in the Help window itself, fetched as it is opened and then kept for offline reading. **Help → Download the Manual for Offline Reading** fetches all of it at once; **Help → Online Manual** opens the wiki.
+
+### Changed
+
+- The install is smaller: the Help window ships with the tutorials only.
+
 ## [0.2.1] - 2026-10-09
 
 ### Added
@@ -165,6 +177,7 @@ Initial public release, for Linux (x86_64) and 64-bit Windows.
 - Control presets: Industry (Maya-style), Blender, QAvimator and Second Life.
 - Built-in help with contents and search, a controls window, two themes, interface scaling, autosave with crash recovery, file associations, and command-line options for files, presets, views, lights, reference and listing media, tool windows, screenshots and benchmarks.
 
+[0.3.0]: ../../releases/tag/v0.3.0
 [0.2.1]: ../../releases/tag/v0.2.1
 [0.2.0]: ../../releases/tag/v0.2.0
 [0.1.1]: ../../releases/tag/v0.1.1

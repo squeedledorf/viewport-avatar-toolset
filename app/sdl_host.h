@@ -23,8 +23,8 @@ public:
     void scene_ground(const Vec3& focus) override { current_->draw_ground(focus); }
     void set_light(const LightPreset* preset) override { view_.set_light(preset); }  // thumbnails keep the studio light
     void scene_triangles(const std::vector<Vertex>& verts, const std::vector<std::uint32_t>& indices, bool depth_test,
-                         float gloss, bool translucent) override {
-        current_->draw_triangles(verts, indices, depth_test, gloss, translucent);
+                         float gloss, bool translucent, const SurfaceTexture* texture) override {
+        current_->draw_triangles(verts, indices, depth_test, gloss, translucent, texture);
     }
     ImTextureID scene_end() override;
     bool save_thumbnail_png(const std::string& path) override;
@@ -35,6 +35,7 @@ public:
     }
     ImTextureID load_texture(const std::string& png) override;
     ImTextureID make_texture(const std::uint8_t* rgba, int width, int height) override;
+    ImTextureID make_mesh_texture(const std::uint8_t* rgba, int width, int height) override;
     bool update_texture(ImTextureID texture, const std::uint8_t* rgba, int width, int height) override;
     void free_texture(ImTextureID texture) override;
 
@@ -59,6 +60,8 @@ public:
     void wake(double seconds) override;
 
     void open_url(const std::string& url) override { SDL_OpenURL(url.c_str()); }
+    std::shared_ptr<ui::Download> download_unpack(const std::string& url, const std::string& dir) override;
+    std::shared_ptr<ui::Download> download_file(const std::string& url, const std::string& path) override;
     void set_title(const std::string& title) override { SDL_SetWindowTitle(window_, title.c_str()); }
     CommandRunner command_runner() override { return system_runner(); }
 

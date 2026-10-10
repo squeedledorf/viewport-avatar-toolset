@@ -448,3 +448,34 @@ TEST(wiki_tutorials_in_list_order) {
     CHECK(shown == listed);
     CHECK_EQ(contents[0].second[0]->title, std::string("VATs"));
 }
+
+// The online manual: pages listed in online-pages.tsv open at their GitHub wiki address unless a folder loaded later
+// (the downloaded manual) holds them; headings become GitHub's ids.
+TEST(wiki_online_manual_index) {
+    namespace fs = std::filesystem;
+    const fs::path base = fs::temp_directory_path() / "vats_wiki_online_test";
+    fs::remove_all(base);
+    fs::create_directories(base / "shipped");
+    fs::create_directories(base / "manual");
+    std::ofstream(base / "shipped" / "tutorials.md") << "# Tutorials\n\nSee [[Graph editor#Filtering curves]].\n";
+    std::ofstream(base / "shipped" / "online-pages.tsv")
+        << "vats\tViewport Avatar Toolset\tGetting started\ngraph-editor\tGraph editor\tAnimating\n../evil\tNo\t\n";
+    vats::wiki::Library lib;
+    CHECK_EQ(lib.load_dir((base / "shipped").string()), 1);
+    CHECK_EQ(lib.online().size(), size_t(2));  // a name with a path in it is no page name
+    CHECK(!lib.find("Graph editor"));
+    const vats::wiki::OnlinePage* o = lib.find_online("graph editor");
+    CHECK(o != nullptr);
+    CHECK_EQ(vats::wiki::Library::online_url(*o, "Filtering curves"),
+             std::string(vats::wiki::kOnlineManual) + "/graph-editor#filtering-curves");
+    CHECK_EQ(vats::wiki::Library::online_url(*lib.find_online("vats")), std::string(vats::wiki::kOnlineManual) + "/Home");
+    CHECK_EQ(lib.search_online("graph").size(), size_t(1));
+    CHECK_EQ(vats::wiki::github_anchor("What BVH loses (and why)"), std::string("what-bvh-loses-and-why"));
+    // Downloaded: the page is here now, and searching online no longer lists it.
+    std::ofstream(base / "manual" / "graph-editor.md") << "# Graph editor\n\n## Filtering curves\n\nText.\n";
+    std::ofstream(base / "manual" / "tutorials.md") << "# Tutorials\n\nAn older copy.\n";
+    CHECK_EQ(lib.load_dir((base / "manual").string()), 1);  // the shipped tutorials page is not replaced
+    CHECK(lib.find("Graph editor") != nullptr);
+    CHECK(lib.search_online("graph").empty());
+    fs::remove_all(base);
+}

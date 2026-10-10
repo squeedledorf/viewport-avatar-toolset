@@ -75,6 +75,21 @@ Under the message:
 | Upload size | A file of 250,000 bytes or more, which Second Life refuses. Error. | **Thin Out Keys** re-keys every keyed bone from its own samples with linear keys, at the smallest tolerance that fits: twice the export's rotation tolerance, doubled until it fits (1 cm of position per degree). |
 | Duration | An animation longer than 60 s, which Second Life refuses. The other rules wait until it fits. Error. | **Trim to 60 s**: the last frame becomes 60 s; loop points past it move in. |
 
+### Hands inside the body
+
+The **Body parts pass through each other** rule measures capsules sized for the SL body, so on a mesh body with wider
+hips, a belly or big thighs, a hand can sink into the mesh without the rule seeing it. **Tools → Push Hands Out of the
+Body...** (with a mesh body shown) tests the hands against the body's own mesh instead: on every frame the body is posed,
+and each forearm, hand and finger vertex that lies behind the surface nearest it, and nearer that surface's bone than
+the surface is, is inside. A thin two-sided card such as a fur tuft has no inside, so it never holds a hand.
+
+Press **Push Out** and each hand that sinks in is moved back out through its arm: its IK target is keyed when the arm
+is in IK, else the shoulder, elbow and wrist are keyed with the rotations IK finds. The push eases in and out over a
+fifth of a second around each contact, so the arm glides clear rather than jumping, and a hand that went deep (through
+to the far side of the body) comes out the way it went in. It works on the marked frame range, or the whole animation,
+as one undo step, and says which hand moved on how many frames and where the deepest contact was. A long motion capture
+take takes up to a minute.
+
 ### See where body parts pass through each other
 
 The frames of every **Body parts pass through each other** finding are marked with short red lines at the

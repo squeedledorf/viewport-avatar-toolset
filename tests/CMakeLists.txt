@@ -49,6 +49,7 @@ add_executable(vats_tests
     test_self_contact.cpp
     test_community_folder.cpp
     test_loop_tools.cpp
+    test_mesh_contact.cpp
     test_loop_assist.cpp
     test_hostile_inputs.cpp
     test_mocap.cpp

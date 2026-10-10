@@ -20,6 +20,13 @@ files, adds the mesh to the scene, and adds it to the Inventory so you can use i
 A message reports the triangle count, whether the mesh is **rigged** or **static**, the scale and up
 axis, and anything it skipped: joints that are not SL bones, missing textures and unsupported features.
 
+Meshes and mesh bodies are drawn with their base colour textures: a picture file beside the model, or one packed
+inside it (a `.glb`, an `.fbx` with embedded media, a glTF data URI), read from the UV set the material names. Cut-out
+materials (glTF **MASK**: fur cards, leaves, lashes) drop their transparent pixels, and see-through ones (**BLEND**)
+show what lies behind. Pictures are scaled down to 2048 pixels a side for the view; the model file is never changed.
+With **View → Bones → Show Weights of Selected**, the weight glow lies over the texture. Normal, roughness and other
+maps are not drawn.
+
 - A **static** mesh has its own position, rotation and scale, and can be attached to a bone or an
   attachment point.
 - A **rigged** mesh follows the avatar and has no transform of its own.

@@ -24,6 +24,7 @@ namespace gl {
     X(decltype(&::glTexSubImage2D), TexSubImage2D, "glTexSubImage2D")            \
     X(decltype(&::glTexParameteri), TexParameteri, "glTexParameteri")            \
     X(decltype(&::glDeleteTextures), DeleteTextures, "glDeleteTextures")         \
+    X(PFNGLGENERATEMIPMAPPROC, GenerateMipmap, "glGenerateMipmap")              \
     X(decltype(&::glCullFace), CullFace, "glCullFace")                           \
     X(decltype(&::glReadPixels), ReadPixels, "glReadPixels")                     \
     X(PFNGLCREATESHADERPROC, CreateShader, "glCreateShader")                     \

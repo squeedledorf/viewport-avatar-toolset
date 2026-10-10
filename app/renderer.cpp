@@ -75,19 +75,26 @@ const char* kLitVs = R"(#version 330 core
 layout(location = 0) in vec3 pos;
 layout(location = 1) in vec3 nrm;
 layout(location = 2) in vec4 col;
+layout(location = 3) in vec2 uv;
 uniform mat4 view_proj;
 out vec3 v_pos, v_nrm;
 out vec4 v_col;
+out vec2 v_uv;
 void main() {
     v_pos = pos;
     v_nrm = nrm;
     v_col = col;
+    v_uv = uv;
     gl_Position = view_proj * vec4(pos, 1.0);
 })";
 
 const char* kLitFs = R"(#version 330 core
 in vec3 v_pos, v_nrm;
 in vec4 v_col;
+in vec2 v_uv;
+uniform sampler2D tex;
+uniform int alpha_mode;   // 0 no texture, 1 opaque (its alpha ignored), 2 mask (cut), 3 blend
+uniform float alpha_cut;
 uniform vec3 eye, sky, ground;
 uniform vec3 key, key_colour, amb;  // the Light menu's preset (08 LT-1); the studio light: amb 0.75, key_colour 1
 uniform float gloss;
@@ -102,8 +109,15 @@ void main() {
     vec3 diffuse = key_colour * wrap * 0.85 + amb / 0.75 * max(dot(n, fill), 0.0) * 0.25;
     float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.35;
     vec3 spec = key_colour * pow(max(dot(n, normalize(key + v)), 0.0), 40.0) * gloss;
-    vec3 c = v_col.rgb * (ambient * amb + diffuse) + vec3(rim * 0.6) + spec;
-    color = vec4(c, v_col.a);
+    vec4 base = v_col;
+    if (alpha_mode != 0) {
+        vec4 t = texture(tex, v_uv);
+        base.rgb *= t.rgb;
+        if (alpha_mode == 2 && t.a < alpha_cut) discard;
+        if (alpha_mode == 3) base.a *= t.a;
+    }
+    vec3 c = base.rgb * (ambient * amb + diffuse) + vec3(rim * 0.6) + spec;
+    color = vec4(c, base.a);
 })";
 
 // The reference picture (08 RF): four corners as uniforms, drawn as a strip bl, br, tl, tr.
@@ -188,7 +202,8 @@ bool Renderer::init(std::string& err) {
     gl::VertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, p)));
     gl::VertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, n)));
     gl::VertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, c)));
-    for (unsigned i = 0; i < 3; ++i) gl::EnableVertexAttribArray(i);
+    gl::VertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, uv)));
+    for (unsigned i = 0; i < 4; ++i) gl::EnableVertexAttribArray(i);
     gl::BindVertexArray(0);
     return true;
 }
@@ -272,13 +287,14 @@ void Renderer::draw_ground(const Vec3& focus) {
 }
 
 void Renderer::draw_triangles(const std::vector<Vertex>& verts, const std::vector<std::uint32_t>& indices,
-                              bool depth_test, float gloss, bool translucent) {
+                              bool depth_test, float gloss, bool translucent, const SurfaceTexture* texture) {
     if (verts.empty()) return;
     depth_test ? gl::Enable(GL_DEPTH_TEST) : gl::Disable(GL_DEPTH_TEST);
-    if (translucent) {
+    if (translucent) {  // overlays lie on surfaces drawn before them: equal depth passes
         gl::Enable(GL_CULL_FACE);
         gl::CullFace(GL_BACK);
         gl::DepthMask(GL_FALSE);
+        gl::DepthFunc(GL_LEQUAL);
     }
     gl::Enable(GL_BLEND);
     gl::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -291,6 +307,11 @@ void Renderer::draw_triangles(const std::vector<Vertex>& verts, const std::vecto
     set3(lit_prog_, "key_colour", light_.colour);
     set3(lit_prog_, "amb", light_.ambient);
     gl::Uniform1f(gl::GetUniformLocation(lit_prog_, "gloss"), gloss);
+    const bool textured = texture && texture->id;
+    gl::Uniform1i(gl::GetUniformLocation(lit_prog_, "alpha_mode"), !textured ? 0 : 1 + int(texture->alpha));
+    gl::Uniform1f(gl::GetUniformLocation(lit_prog_, "alpha_cut"), textured ? texture->cut : 0.5f);
+    gl::Uniform1i(gl::GetUniformLocation(lit_prog_, "tex"), 0);
+    gl::BindTexture(GL_TEXTURE_2D, textured ? unsigned(texture->id) : 0);
     gl::BindVertexArray(vao_);
     gl::BindBuffer(GL_ARRAY_BUFFER, vbo_);
     gl::BufferData(GL_ARRAY_BUFFER, static_cast<long>(verts.size() * sizeof(Vertex)), verts.data(), GL_STREAM_DRAW);
@@ -301,10 +322,12 @@ void Renderer::draw_triangles(const std::vector<Vertex>& verts, const std::vecto
         gl::DrawElements(GL_TRIANGLES, static_cast<int>(indices.size()), GL_UNSIGNED_INT, nullptr);
     }
     gl::BindVertexArray(0);
+    gl::BindTexture(GL_TEXTURE_2D, 0);
     gl::Disable(GL_BLEND);
     if (translucent) {
         gl::Disable(GL_CULL_FACE);
         gl::DepthMask(GL_TRUE);
+        gl::DepthFunc(GL_LESS);
     }
 }
 

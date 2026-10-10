@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <iterator>
+#include <fstream>
 
 #include "check.h"
 #include "fixtures.h"
@@ -335,6 +337,46 @@ TEST(gltf_static_mesh_y_up) {
     CHECK(!r.skins_as_static);
     // The node's translation (0, 1, 0) in glTF is (0, 0, 1) in SL: the tetrahedron at the pelvis sits a metre higher.
     CHECK_NEAR(m.bounds_min.z, 1.0 + rest_globals()[0].pos.z, 1e-4);
+}
+
+// A texture embedded as a data: URI, read from the second UV set (Blender's exports often use TEXCOORD_1), with a
+// MASK cut-off. TEXCOORD_0 here is unusable (three numbers a vertex), so UVs only arrive if the right set is read.
+TEST(gltf_embedded_texture_and_uv_set) {
+    std::string text = GltfBuilder().build(gltf_joints({"mPelvis"}, rest_globals()), false);
+    Json doc;
+    std::string err;
+    CHECK(parse_json(text, doc, err));
+    Json& attrs = *doc.find("meshes")->arr[0].find("primitives")->arr[0].find("attributes");
+    const int uv = int(attrs.find("TEXCOORD_0")->num);
+    attrs.set("TEXCOORD_1", uv);
+    attrs.set("TEXCOORD_0", int(attrs.find("NORMAL")->num));
+    std::ifstream f(std::string(VATS_TEST_FILES) + "/thumb-drawn.png", std::ios::binary);
+    const std::vector<std::uint8_t> png((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    Json image = Json::object(), images = Json::array(), tex = Json::object(), texs = Json::array(), bt = Json::object();
+    image.set("uri", "data:image/png;base64," + base64(png));
+    images.push(std::move(image));
+    tex.set("source", 0);
+    texs.push(std::move(tex));
+    doc.set("images", std::move(images));
+    doc.set("textures", std::move(texs));
+    bt.set("index", 0);
+    bt.set("texCoord", 1);
+    Json& mat = doc.find("materials")->arr[0];
+    mat.find("pbrMetallicRoughness")->set("baseColorTexture", std::move(bt));
+    mat.set("alphaMode", "MASK");
+    text = write_json(doc);
+    DaeModel m;
+    DaeReport r;
+    CHECK(load_gltf(text, m, r));
+    CHECK(r.missing_textures.empty());
+    CHECK_EQ(m.materials.size(), size_t(1));
+    CHECK(m.materials[0].image == png);
+    CHECK_EQ(m.materials[0].uv_set, 1);
+    CHECK_NEAR(m.materials[0].alpha_cutoff, 0.5, 1e-6);
+    CHECK_NEAR(m.materials[0].rgba[0], 1.0, 1e-6);  // white under the texture
+    bool any_uv = false;
+    for (float x : m.uvs) any_uv = any_uv || x != 0;
+    CHECK(any_uv);
 }
 
 TEST(gltf_without_inverse_binds_warns) {

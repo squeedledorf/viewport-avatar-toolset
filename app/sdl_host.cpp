@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <vector>
+#include <thread>
+#include <filesystem>
 
 #include "file_types.h"
 #include "gl.h"
@@ -135,6 +138,109 @@ ImTextureID SdlHost::make_texture(const std::uint8_t* rgba, int width, int heigh
     gl::TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     gl::TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     gl::TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    gl::BindTexture(GL_TEXTURE_2D, 0);
+    return ImTextureID(tex);
+}
+
+// A child process with no console window of its own (Windows), waited for; its exit code, or -1 when it would not
+// start.
+static int run_hidden(const char* const* args) {
+    const SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, const_cast<char**>(args));
+    SDL_SetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, true);
+    SDL_Process* p = SDL_CreateProcessWithProperties(props);
+    SDL_DestroyProperties(props);
+    if (!p) return -1;
+    int code = -1;
+    SDL_WaitProcess(p, true, &code);
+    SDL_DestroyProcess(p);
+    return code;
+}
+
+// curl and tar, as Linux distributions and Windows 10 and later ship them, run as processes on a thread of their own
+// (no new library for one download): into "<dir>.download.tar.gz", unpacked into "<dir>.new", which then replaces dir.
+std::shared_ptr<ui::Download> SdlHost::download_unpack(const std::string& url, const std::string& dir) {
+    auto job = std::make_shared<ui::Download>();
+    if (url.rfind("https://", 0) != 0 || dir.empty()) {
+        job->message = "not a download address";
+        job->state = ui::Download::Failed;
+        return job;
+    }
+    std::thread([job, url, dir] {
+        namespace fs = std::filesystem;
+        auto run = [](std::vector<const char*> args) {
+            args.push_back(nullptr);
+            return run_hidden(args.data());
+        };
+        auto fail = [&](const std::string& why) {
+            job->message = why;
+            job->state = ui::Download::Failed;
+        };
+        const std::string tmp = dir + ".download.tar.gz", staging = dir + ".new";
+        std::error_code ec;
+        fs::remove_all(staging, ec);
+        fs::create_directories(staging, ec);
+        if (run({"curl", "-fsSL", "--max-time", "600", "-o", tmp.c_str(), url.c_str()}) != 0) {
+            fs::remove(tmp, ec);
+            return fail("the download did not finish (no internet connection, or curl is missing)");
+        }
+        if (run({"tar", "-xzf", tmp.c_str(), "-C", staging.c_str()}) != 0) {
+            fs::remove(tmp, ec), fs::remove_all(staging, ec);
+            return fail("the downloaded file could not be unpacked (tar is missing, or the file is damaged)");
+        }
+        fs::remove(tmp, ec);
+        bool pages = false;
+        for (const auto& e : fs::directory_iterator(staging, ec)) pages = pages || e.path().extension() == ".md";
+        if (!pages) {
+            fs::remove_all(staging, ec);
+            return fail("the download held no help pages");
+        }
+        fs::remove_all(dir, ec);
+        fs::rename(staging, dir, ec);
+        if (ec) return fail("the pages could not be put in place: " + ec.message());
+        job->state = ui::Download::Done;
+    }).detach();
+    return job;
+}
+
+std::shared_ptr<ui::Download> SdlHost::download_file(const std::string& url, const std::string& path) {
+    auto job = std::make_shared<ui::Download>();
+    if (url.rfind("https://", 0) != 0 || path.empty()) {
+        job->message = "not a download address";
+        job->state = ui::Download::Failed;
+        return job;
+    }
+    std::thread([job, url, path] {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        fs::create_directories(fs::path(path).parent_path(), ec);
+        const std::string part = path + ".part";
+        const char* args[] = {"curl", "-fsSL", "--max-time", "120", "-o", part.c_str(), url.c_str(), nullptr};
+        const int code = run_hidden(args);
+        if (code != 0) {
+            fs::remove(part, ec);
+            job->message = code != -1 ? "could not be fetched (no internet connection?)" : "curl is missing";
+            job->state = ui::Download::Failed;
+            return;
+        }
+        fs::rename(part, path, ec);
+        if (ec) job->message = ec.message();
+        job->state = ec ? ui::Download::Failed : ui::Download::Done;
+    }).detach();
+    return job;
+}
+
+ImTextureID SdlHost::make_mesh_texture(const std::uint8_t* rgba, int width, int height) {
+    if (!rgba || width <= 0 || height <= 0) return ImTextureID{};
+    unsigned tex = 0;
+    gl::GenTextures(1, &tex);
+    gl::BindTexture(GL_TEXTURE_2D, tex);
+    gl::TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    gl::TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl::TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    gl::TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    gl::TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    gl::GenerateMipmap(GL_TEXTURE_2D);
     gl::BindTexture(GL_TEXTURE_2D, 0);
     return ImTextureID(tex);
 }

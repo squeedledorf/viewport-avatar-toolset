@@ -289,8 +289,8 @@ The look is saved with the project, for that body, and in the model's [[#The map
 model looks the same the next time you import it. A model rigged to SL's own names gets a mapping file that holds only
 its look.
 
-> **Note:** VATs does not draw the textures inside a `.glb` file. A shape key that moves a decal drawn by its texture
-> (a mouth, the eyes) shows little in the view, but the export still bakes it.
+> **Note:** a shape key that moves a decal drawn by the texture (a mouth, the eyes) shows only as far as the texture
+> follows the mesh; the export bakes it either way.
 
 ### Make a face pose from a shape key
 

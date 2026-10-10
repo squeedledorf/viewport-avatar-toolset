@@ -23,8 +23,9 @@ public:
     // ground_focus: where the contact shadow sits (the avatar's pelvis over the ground).
     void draw_ground(const Vec3& ground_focus);
     // translucent: back faces culled (counter-clockwise front) and no depth writes, for see-through overlays.
+    // texture: the colour times the texture, its alpha as SurfaceTexture says (null: plain colours).
     void draw_triangles(const std::vector<Vertex>& verts, const std::vector<std::uint32_t>& indices, bool depth_test,
-                        float gloss = 0.f, bool translucent = false);
+                        float gloss = 0.f, bool translucent = false, const SurfaceTexture* texture = nullptr);
     // A texture on a quad (08 RF): corners bottom-left, bottom-right, top-right, top-left of the picture; backdrop =
     // clip-space corners, no depth; else scene corners, depth-tested, writing no depth.
     void draw_image(unsigned texture, const std::array<Vec3, 4>& corners, float opacity, bool backdrop);

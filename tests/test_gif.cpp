@@ -206,3 +206,21 @@ TEST(png_blank_finds_empty_thumbnails) {
     CHECK(!png_blank(blank.data(), 20));
     CHECK(!png_blank(nullptr, 0));
 }
+
+// Pictures for model textures: read, halved until they fit, and turned bottom row first for GL.
+TEST(read_picture_fits_and_flips) {
+    const std::string path = std::string(VATS_TEST_FILES) + "/thumb-drawn.png";
+    Picture full, half, flipped;
+    CHECK(read_picture_file(path, full, 2048, false));
+    CHECK_EQ(full.width, 4);
+    CHECK_EQ(full.height, 4);
+    CHECK(read_picture_file(path, half, 2, false));
+    CHECK_EQ(half.width, 2);
+    CHECK_EQ(half.height, 2);
+    CHECK(read_picture_file(path, flipped, 2048, true));
+    for (int y = 0; y < 4; ++y)
+        for (int b = 0; b < 16; ++b) CHECK_EQ(int(flipped.rgba[size_t(y * 16 + b)]), int(full.rgba[size_t((3 - y) * 16 + b)]));
+    Picture none;
+    CHECK(!read_picture(nullptr, 0, none));
+    CHECK(!read_picture_file(path + ".missing", none));
+}
