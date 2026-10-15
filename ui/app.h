@@ -46,6 +46,7 @@
 #include "vats/project.h"
 #include "vats/motion_quality.h"
 #include "vats/rig.h"
+#include "vats/rig_export.h"
 #include "vats/rig_map.h"
 #include "vats/simplify.h"
 #include "vats/skeleton.h"
@@ -1536,6 +1537,7 @@ private:
     void draw_rig_export_window();  // File > Export Rigged Mesh for SL...
     void draw_joint_inspector();    // Rig > Joint Offset Inspector...
     void refresh_rig_check();       // the parts, findings and joint tables of the body shown
+    RigExportOptions rig_export_options() const;  // the export window's options (the defaults before it opens)
     // A fix on the body's part-th file, applied to its source (part_source); the body's shape cache dropped, re-checked.
     void rig_fix_applied(int part, const std::function<void(DaeModel&)>& fix);
     void rig_check_stale();         // a part's mesh changed: check again before the window draws

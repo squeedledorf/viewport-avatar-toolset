@@ -2,6 +2,15 @@
 
 All notable changes to Viewport Avatar Toolset are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-10-14
+
+### Fixed
+
+- **File → Export Rigged Mesh for SL** let a rig mapped from another skeleton (a game character) go out in ways that break in Second Life. It now refuses them, with a button that sets the right option:
+  - With **Bind pose only** or no **Joint positions**, a rig whose joints sit off SL's came apart in the uploader, each bone's part pulled onto SL's own joint (a skeleton's forearms flung out, its knees split). **Write Joint Positions** fixes it.
+  - Arms modelled hanging (an A-pose) without **Stand it in SL's rest pose** swung through the body under SL's animations, the stand included. **Stand It in SL's Rest Pose** fixes it.
+- **Stand it in SL's rest pose** turned every bone onto SL's direction for it, so a skeleton's head tipped back to look up (it followed the jaw), its shoulder blades stuck out and its feet tilted. It now turns only the arms and legs; the spine, neck, head, collars, hands and feet keep the posture they were modelled in.
+
 ## [0.3.0] - 2026-10-10
 
 ### Added
@@ -177,6 +186,7 @@ Initial public release, for Linux (x86_64) and 64-bit Windows.
 - Control presets: Industry (Maya-style), Blender, QAvimator and Second Life.
 - Built-in help with contents and search, a controls window, two themes, interface scaling, autosave with crash recovery, file associations, and command-line options for files, presets, views, lights, reference and listing media, tool windows, screenshots and benchmarks.
 
+[0.3.1]: ../../releases/tag/v0.3.1
 [0.3.0]: ../../releases/tag/v0.3.0
 [0.2.1]: ../../releases/tag/v0.2.1
 [0.2.0]: ../../releases/tag/v0.2.0

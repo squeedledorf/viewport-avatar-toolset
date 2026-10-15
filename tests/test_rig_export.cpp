@@ -199,6 +199,24 @@ TEST(rig_export_a_pose_longer_forearm_offsets_along_rest_axis) {
     pose.rot[s.find("mShoulderLeft")] = Quat::axis_angle({1, 0, 0}, 45 * kDegToRad);
     std::vector<Xform> posed = s.global_pose(pose);
     const int e = s.find("mElbowLeft"), w = s.find("mWristLeft");
+    // Bind pose only at SL's lengths: no joint position at all, the inverse binds still posed, and it skins back whole.
+    RigExportOptions bind_only;
+    bind_only.bind_pose_only = true;
+    {
+        std::vector<Bind> b;
+        for (const char* n : {"mPelvis", "mTorso", "mChest", "mShoulderLeft", "mElbowLeft", "mWristLeft"}) b.push_back({n, posed[s.find(n)]});
+        const DaeModel sl = make_model(b);
+        CHECK(!has(check_rig_export(s, {part_of(sl)}, bind_only), "comes_apart"));
+        const std::string plain = export_dae(sl, bind_only);
+        std::map<std::string, Vec3> at;
+        for (auto& [name, t] : uploader_joint_translations(plain)) at[name] = t;
+        CHECK(at.count("mWristLeft") && dist(at["mWristLeft"], s[w].pos) < 1e-6);
+        for (const RigJoint& r : rig_joints(s, sl, bind_only)) CHECK(!r.uploads);
+        DaeModel back;
+        DaeReport rep;
+        CHECK(reimport(plain, back, rep));
+        CHECK_NEAR(dist(back.binds[w].pos, posed[w].pos), 0, 1e-4);
+    }
     // 3 cm more forearm, along the posed bone.
     posed[w].pos = posed[w].pos + (posed[w].pos - posed[e].pos).normalized() * 0.03;
     std::vector<Bind> binds;
@@ -215,17 +233,20 @@ TEST(rig_export_a_pose_longer_forearm_offsets_along_rest_axis) {
     int uploads = 0;
     for (const RigJoint& r : rig_joints(s, m, opt)) uploads += r.uploads;
     CHECK_EQ(uploads, 1);
-    // Bind pose only: no joint position at all, the inverse binds still posed.
+    // Bind pose only with the longer forearm is refused: SL would skin the hand onto its own wrist, 3 cm short of the
+    // forearm's end. The finding's fix writes joint positions again.
+    CHECK(!has(check_rig_export(s, {part_of(m)}, {}), "comes_apart"));
     opt.bind_pose_only = true;
-    const std::string plain = export_dae(m, opt);
-    local.clear();
-    for (auto& [name, t] : uploader_joint_translations(plain)) local[name] = t;
-    CHECK_NEAR(dist(local.at("mWristLeft"), s[w].pos), 0, 1e-6);
-    for (const RigJoint& r : rig_joints(s, m, opt)) CHECK(!r.uploads);
-    DaeModel back;
-    DaeReport rep;
-    CHECK(reimport(plain, back, rep));
-    CHECK_NEAR(dist(back.binds[w].pos, posed[w].pos), 0, 1e-4);
+    const std::vector<RigFinding> bind_only_findings = check_rig_export(s, {part_of(m)}, opt);
+    const RigFinding* apart = find(bind_only_findings, "comes_apart");
+    CHECK(apart && apart->severity == RigSeverity::Error && apart->joints == std::vector<std::string>{"mWristLeft"} &&
+          apart->message.find("3.0 cm") != std::string::npos);
+    std::string out, err;
+    CHECK(!write_rig_dae(s, {part_of(m)}, opt, out, err));
+    opt.joint_positions = false, opt.bind_pose_only = false;
+    CHECK(has(check_rig_export(s, {part_of(m)}, opt), "comes_apart"));
+    if (apart && apart->fix_options) apart->fix_options(opt);
+    CHECK(opt.joint_positions && !opt.bind_pose_only && !rig_export_refused(check_rig_export(s, {part_of(m)}, opt)));
 }
 
 TEST(rig_export_creature_positions_within_tenth_mm) {
@@ -661,6 +682,76 @@ double arm_down_error(const std::string& dae) {
 
 }  // namespace
 
+TEST(rig_export_rest_pose_turns_only_the_limbs) {
+    // A skeleton: arms 45 degrees down, the neck leaning 20 degrees forward, and the jaw (weighted, the head's only
+    // weighted child: mSkull carries none) forward and below the head. The arms stand out level; the neck, head,
+    // collars and feet keep their bind, so the head does not tip back, nor the shoulder blades stick out.
+    const Skeleton& s = skel();
+    Pose a(s.size());
+    a.rot[s.find("mShoulderLeft")] = Quat::axis_angle({1, 0, 0}, 45 * kDegToRad);
+    a.rot[s.find("mShoulderRight")] = Quat::axis_angle({1, 0, 0}, -45 * kDegToRad);
+    a.rot[s.find("mNeck")] = Quat::axis_angle({0, 1, 0}, 20 * kDegToRad);
+    a.rot[s.find("mHipLeft")] = Quat::axis_angle({1, 0, 0}, 15 * kDegToRad);  // the left leg out to the side
+    std::vector<Xform> posed = s.global_pose(a);
+    const std::vector<Xform> rest = rest_globals();
+    const int head = s.find("mHead"), neck = s.find("mNeck"), jaw = s.find("mFaceJaw");
+    posed[jaw].pos = posed[head].pos + Vec3{0.03, 0, -0.03};
+    // The clavicles reach back to the shoulders, and the feet point flatter than SL's ankle-to-foot.
+    const int collar = s.find("mCollarLeft"), ankle = s.find("mAnkleLeft"), foot = s.find("mFootLeft");
+    posed[collar].pos = posed[collar].pos + Vec3{0.04, 0, -0.02};
+    posed[foot].pos = posed[ankle].pos + Vec3{0.12, 0, -0.01};
+    std::vector<Bind> binds;
+    for (const char* n : {"mPelvis", "mTorso", "mChest", "mNeck", "mHead", "mFaceJaw", "mCollarLeft", "mShoulderLeft", "mElbowLeft",
+                          "mWristLeft", "mCollarRight", "mShoulderRight", "mElbowRight", "mWristRight", "mHipLeft", "mKneeLeft",
+                          "mAnkleLeft", "mFootLeft", "mHipRight", "mKneeRight"})
+        binds.push_back({n, Xform{rest[s.find(n)].rot, posed[s.find(n)].pos}});
+    const DaeModel m = make_model(binds);
+    RigExportOptions opt;
+    opt.rest_pose = true;
+    const std::vector<RigFinding> f = check_rig_export(s, {part_of(m)}, opt);
+    CHECK(!rig_export_refused(f) && !has(f, "comes_apart"));
+    DaeModel back;
+    DaeReport rep;
+    CHECK(reimport(export_dae(m, opt), back, rep));
+    auto turned = [&](int j) { return (back.binds[j].rot.conj() * rest[j].rot).angle() * kRadToDeg; };
+    for (int j : {neck, head, jaw, collar}) CHECK(turned(j) < 0.5);
+    CHECK(turned(s.find("mShoulderLeft")) > 40 && turned(s.find("mKneeLeft")) > 10);
+    // The hand turns with the forearm and the foot with the shin.
+    const int elbow = s.find("mElbowLeft"), wrist = s.find("mWristLeft"), knee = s.find("mKneeLeft");
+    CHECK((back.binds[wrist].rot.conj() * back.binds[elbow].rot).angle() < 1e-4);
+    CHECK((back.binds[ankle].rot.conj() * back.binds[knee].rot).angle() < 1e-4);
+    CHECK((back.binds[foot].rot.conj() * back.binds[knee].rot).angle() < 1e-4);
+    // Without the option an upright humanoid is refused; a rig with arms and no legs (wings bound drooping) only warns.
+    const std::vector<RigFinding> plain = check_rig_export(s, {part_of(m)}, {});
+    CHECK(find(plain, "rest_pose") && find(plain, "rest_pose")->severity == RigSeverity::Error);
+    std::vector<Bind> armed;
+    for (const Bind& b : binds)
+        if (b.name.find("Hip") == std::string::npos && b.name.find("Knee") == std::string::npos && b.name.find("Ankle") == std::string::npos &&
+            b.name.find("Foot") == std::string::npos)
+            armed.push_back(b);
+    const DaeModel upper = make_model(armed);
+    const std::vector<RigFinding> legless = check_rig_export(s, {part_of(upper)}, {});
+    CHECK(find(legless, "rest_pose") && find(legless, "rest_pose")->severity == RigSeverity::Warning && !rig_export_refused(legless));
+    // A body in two files, the arms in one and the legs in the other, is still an upright humanoid.
+    std::vector<Bind> legged;
+    for (const char* n : {"mPelvis", "mHipLeft", "mKneeLeft", "mAnkleLeft", "mHipRight", "mKneeRight"})
+        legged.push_back({n, Xform{rest[s.find(n)].rot, posed[s.find(n)].pos}});
+    const DaeModel lower = make_model(legged);
+    CHECK(rig_export_refused(check_rig_export(s, {part_of(upper), part_of(lower)}, {})));
+    // Arms hanging straight down (an I-pose) on an upright body are refused too, though they no longer reach sideways.
+    Pose i_pose(s.size());
+    i_pose.rot[s.find("mShoulderLeft")] = Quat::axis_angle({1, 0, 0}, 85 * kDegToRad);
+    i_pose.rot[s.find("mShoulderRight")] = Quat::axis_angle({1, 0, 0}, -85 * kDegToRad);
+    const std::vector<Xform> hanging = s.global_pose(i_pose);
+    std::vector<Bind> straight;
+    for (const char* n : {"mPelvis", "mTorso", "mChest", "mShoulderLeft", "mElbowLeft", "mWristLeft", "mShoulderRight", "mElbowRight",
+                          "mWristRight", "mHipLeft", "mKneeLeft", "mHipRight", "mKneeRight"})
+        straight.push_back({n, Xform{rest[s.find(n)].rot, hanging[s.find(n)].pos}});
+    const std::vector<RigFinding> hung = check_rig_export(s, {part_of(make_model(straight))}, {});
+    const RigFinding* down = find(hung, "rest_pose");
+    CHECK(down && down->severity == RigSeverity::Error);
+}
+
 TEST(rig_export_rest_pose_stands_a_mapped_a_pose_in_t_pose) {
     // A mapped rig modelled in an A-pose: arms 45 degrees down, bound on SL's unturned joints (settle_rig's foreign
     // rigs), forearms 3 cm longer than SL's.
@@ -674,19 +765,22 @@ TEST(rig_export_rest_pose_stands_a_mapped_a_pose_in_t_pose) {
     posed[w].pos = posed[w].pos + (posed[w].pos - posed[e].pos).normalized() * 0.03;
     std::vector<Bind> binds;
     for (const char* n : {"mPelvis", "mTorso", "mChest", "mNeck", "mHead", "mCollarLeft", "mShoulderLeft", "mElbowLeft", "mWristLeft",
-                          "mHandMiddle1Left", "mCollarRight", "mShoulderRight", "mElbowRight", "mWristRight"})
+                          "mHandMiddle1Left", "mCollarRight", "mShoulderRight", "mElbowRight", "mWristRight", "mHipLeft", "mKneeLeft",
+                          "mHipRight", "mKneeRight"})
         binds.push_back({n, Xform{rest[s.find(n)].rot, posed[s.find(n)].pos}});
     const DaeModel m = make_model(binds);
-    // As it is: the A-pose is written as joint positions, and an SL animation turns the arm 45 degrees too far.
+    // As it is, an SL animation would turn the arm 45 degrees too far: refused, and the finding's fix stands it in
+    // SL's rest pose.
     std::vector<RigFinding> f = check_rig_export(s, {part_of(m)}, {});
     const RigFinding* hint = find(f, "rest_pose");
-    CHECK(hint && hint->message.find("45 degrees") != std::string::npos);
-    const double plain = arm_down_error(export_dae(m));
-    CHECK(plain > 40);
+    CHECK(hint && hint->severity == RigSeverity::Error && hint->message.find("45 degrees") != std::string::npos);
+    std::string refused, err;
+    CHECK(!write_rig_dae(s, {part_of(m)}, {}, refused, err));
     // Stood in SL's rest pose: the joints are written out level along SL's rest directions at the file's lengths
     // (the forearm still 3 cm long), the binds carry the A-pose, and the same animation puts the arm straight down.
     RigExportOptions opt;
-    opt.rest_pose = true;
+    if (hint && hint->fix_options) hint->fix_options(opt);
+    CHECK(opt.rest_pose);
     CHECK(!has(check_rig_export(s, {part_of(m)}, opt), "rest_pose"));
     const std::string dae = export_dae(m, opt);
     const std::map<std::string, Vec3> up = uploaded_globals(dae);

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Viewport Avatar Toolset contributors. LGPL-2.1, see LICENSE.
 //
 // Usage: vats_rig_export <data/character dir> <out.dae> <mesh files...> [--no-joint-positions] [--bind-pose-only]
-//        [--pelvis] [--snap-noise] [--verify]
+//        [--rest-pose] [--shape-proof] [--pelvis] [--snap-noise] [--verify]
 // Reads .dae, .fbx, .gltf or .glb parts as the app does, prints the check and every joint position that uploads,
 // writes the COLLADA file, and with --verify reads it back: every bound joint's bind within 0.1 mm, the joint
 // translations the uploader reads (lldaeloader's rules) placing each positioned joint within 0.1 mm of its bind,
@@ -34,7 +34,7 @@ std::string stem_of(const std::string& path) {
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::fprintf(stderr, "usage: vats_rig_export <data/character dir> <out.dae> <mesh files...> [--no-joint-positions] "
-                             "[--bind-pose-only] [--pelvis] [--snap-noise] [--verify]\n");
+                             "[--bind-pose-only] [--rest-pose] [--shape-proof] [--pelvis] [--snap-noise] [--verify]\n");
         return 2;
     }
     Skeleton skel;
@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
         const std::string a = argv[i];
         if (a == "--no-joint-positions") opt.joint_positions = false;
         else if (a == "--bind-pose-only") opt.bind_pose_only = true;
+        else if (a == "--rest-pose") opt.rest_pose = true;
+        else if (a == "--shape-proof") opt.shape_proof = true;
         else if (a == "--pelvis") opt.pelvis_offset = true;
         else if (a == "--snap-noise") snap_noise = true;
         else if (a == "--verify") verify = true;
