@@ -229,7 +229,11 @@ int main(int argc, char** argv) {
             app.cli_picker_style(argv[++i]) || std::fprintf(stderr, "unknown picker style %s\n", argv[i]);
         else if (a == "--bones" && i + 1 < argc)
             app.cli_bone_style(argv[++i]) || std::fprintf(stderr, "unknown bone style %s\n", argv[i]);
-        else if (a == "--window" && i + 1 < argc)
+        else if (a == "--resize" && i + 1 < argc) {
+            const std::string pct = argv[++i];
+            const bool keys_off = i + 1 < argc && std::string(argv[i + 1]) == "--resize-keys-off" && ++i;
+            app.cli_resize(pct, keys_off) || std::fprintf(stderr, "bad size %s (10 to 1000)\n", pct.c_str());
+        } else if (a == "--window" && i + 1 < argc)
             app.show_window(argv[++i]) || std::fprintf(stderr, "unknown window %s\n", argv[i]);
         else if (a == "--shot-rect" && i + 1 < argc)
             shot_rect = argv[++i];

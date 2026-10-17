@@ -1879,6 +1879,21 @@
         0,
         112
       ]
+    },
+    {
+      "out": "resize-skeleton/resize-window.png",
+      "args": [
+        "examples/jump-finished.vat",
+        "--body",
+        "sl-default",
+        "--resize",
+        "250",
+        "--frame",
+        "8",
+        "--window",
+        "resize"
+      ],
+      "crop": "Resize Skeleton"
     }
   ]
 }

@@ -69,6 +69,12 @@ Your shape and mesh body differ from the Linden default. Preview on your mesh bo
 Body**, and choose the bake shape in the export settings. See [[Mesh bodies]] and
 [[Export to Second Life]].
 
+### How do I make the whole skeleton bigger or smaller?
+
+**View → Body → Resize Skeleton...**: set a size or a height and press **Apply**. With **Keep feet on the ground and
+scale the keys** ticked, the hip's moves, IK targets and held positions are scaled too. The **Scale** tool scales
+props only. See [[Resize skeleton]].
+
 ### Can I animate two avatars together?
 
 Yes, with actors: **Tools → Actors (Couples and Groups)...**. See [[Couples and groups]].

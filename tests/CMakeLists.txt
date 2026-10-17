@@ -75,6 +75,7 @@ add_executable(vats_tests
     test_retime.cpp
     test_world_reduce.cpp
     test_height_variant.cpp
+    test_resize.cpp
     test_time_edit.cpp
     test_tween.cpp
     test_key_tags.cpp

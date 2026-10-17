@@ -52,6 +52,9 @@ it is drawn as a bone again. `mFaceEyeAltLeft` and `mFaceEyeAltRight` are rings 
 
 The body is only for display. It changes nothing in the exported animation.
 
+To make the skeleton itself bigger or smaller, with the body, use **View → Body → Resize Skeleton...**; see
+[[Resize skeleton]].
+
 ### Attachment points
 
 Attachment points are bones too: select, rotate, move and key them like any other bone. Whatever is worn on a point moves with it in Second Life, so an animation can wave a worn sword or pass a worn glass from one hand to the other ([[Hold and bind]]).

@@ -2,6 +2,20 @@
 
 All notable changes to Viewport Avatar Toolset are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-17
+
+### Added
+
+- **View → Body → Resize Skeleton...**: make the body an animation is made for bigger or smaller as a whole, 10% to 1000% (or a height in metres): every bone, the body mesh and the collision volumes, with the feet kept on the ground. IK, pins, the Animation Check and the bakes work on the resized body, and each clip and actor keeps its own size. For giants, tiny avatars and big creatures, or to fit an animation you already made to one.
+  - **Keep feet on the ground and scale the keys** (on by default) scales the hip's moves, the IK targets and the held positions with the body, so a crouch, a sit or a jump keeps its depth. A normal animation resized this way becomes one for a giant.
+  - Exports write the positions as an avatar of that size made with joint positions holds them (a mesh rigged with **Include joint positions**, as giant avatars are).
+- `--resize <percent>` on the command line, as **Apply** in that window.
+
+### Changed
+
+- The Animation Check's ground tolerance grows with the skeleton's size.
+- **Also export for heights** is off while a skeleton is resized: those heights are SL shapes at 100%.
+
 ## [0.3.1] - 2026-10-14
 
 ### Fixed
