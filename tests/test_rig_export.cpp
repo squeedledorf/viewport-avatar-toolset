@@ -603,6 +603,35 @@ TEST(rig_height_neck_stretch_sinks_half_and_mskull_evens_it) {
     CHECK_NEAR(viewer_body_size(dae).height, h.default_body, 1e-5);
 }
 
+TEST(rig_export_scaled_body_is_a_joint_position_giant) {
+    // RS-8: a whole body at 5 times its size, as Export Rigged Mesh writes it at Resize Skeleton's size: every
+    // written joint 5 times as far from its parent, the soles 5 times as far below the pelvis, and mSkull evens out
+    // the sink so the giant stands on the ground.
+    const Skeleton& s = skel();
+    const std::vector<Xform> g = rest_globals();
+    std::vector<Bind> binds;
+    for (const char* n : {"mPelvis", "mTorso", "mChest", "mNeck", "mHead", "mCollarLeft", "mShoulderLeft", "mElbowLeft", "mWristLeft",
+                          "mHipLeft", "mKneeLeft", "mAnkleLeft", "mHipRight", "mKneeRight", "mAnkleRight"})
+        binds.push_back({n, g[s.find(n)]});
+    const DaeModel m = make_model(binds);
+    DaeModel giant = scaled_model(m, 5);
+    CHECK_NEAR(giant.positions[0], m.positions[0] * 5, 1e-5);
+    std::map<std::string, Vec3> t;
+    for (auto& [name, v] : uploader_joint_translations(export_dae(giant))) t[name] = v;
+    for (const char* n : {"mTorso", "mElbowLeft", "mKneeLeft", "mAnkleRight"})
+        CHECK_NEAR(dist(t.at(n), s[s.find(n)].pos * 5), 0, 1e-4);
+    RigHeight h = rig_in_world_height(s, {part_of(giant)}, {});
+    CHECK(h.sole < -1);  // SL keeps the agent at the default size: the giant sinks
+    const std::vector<RigFinding> f = check_rig_export(s, {part_of(giant)}, {});
+    const RigFinding* w = find(f, "in_world_height");
+    CHECK(w && w->fix);
+    if (w && w->fix) w->fix(giant);
+    CHECK_NEAR(rig_in_world_height(s, {part_of(giant)}, {}).sole, 0, 1e-6);
+    // Back at its own size the fix is a 5 times smaller skull move, as the export window carries it back.
+    const DaeModel back = scaled_model(giant, 0.2);
+    CHECK_NEAR(dist(back.binds[s.find("mElbowLeft")].pos, m.binds[s.find("mElbowLeft")].pos), 0, 1e-9);
+}
+
 TEST(rig_height_level_spine_creature_floats) {
     // A creature: its body along the ground at 60 cm, the hind (left) leg short, the head forward.
     const Skeleton& s = skel();
@@ -796,6 +825,60 @@ TEST(rig_export_rest_pose_stands_a_mapped_a_pose_in_t_pose) {
     CHECK(hand.normalized().dot((rest[mid].pos - rest[w].pos).normalized()) > 0.99);
     // The body is untouched.
     CHECK_NEAR(dist(up.at("mHead"), rest[s.find("mHead")].pos), 0, 1e-4);
+}
+
+TEST(stand_in_rest_pose_shows_an_a_pose_body_as_sl_will) {
+    // The A-pose body above, worn as a mesh body: VATs shows it in SL's rest pose, as the export stands it, so an
+    // animation made for SL's rest (a retarget's frame 0 lowering the arms) does not cross the arms through the body.
+    const Skeleton& s = skel();
+    Pose a(s.size());
+    a.rot[s.find("mShoulderLeft")] = Quat::axis_angle({1, 0, 0}, 45 * kDegToRad);
+    a.rot[s.find("mShoulderRight")] = Quat::axis_angle({1, 0, 0}, -45 * kDegToRad);
+    const std::vector<Xform> posed = s.global_pose(a);
+    const std::vector<Xform> rest = rest_globals();
+    std::vector<Bind> binds;
+    for (const char* n : {"mPelvis", "mTorso", "mChest", "mNeck", "mHead", "mCollarLeft", "mShoulderLeft", "mElbowLeft", "mWristLeft",
+                          "mCollarRight", "mShoulderRight", "mElbowRight", "mWristRight", "mHipLeft", "mKneeLeft", "mHipRight", "mKneeRight"})
+        binds.push_back({n, Xform{rest[s.find(n)].rot, posed[s.find(n)].pos}});
+    DaeModel m = make_model(binds);
+    const int e = s.find("mElbowLeft"), w = s.find("mWristLeft");
+    CHECK(stand_in_rest_pose(s, {&m}));
+    CHECK(!stand_in_rest_pose(s, {&m}));  // once stood, nothing more to do
+    CHECK_NEAR(dist(m.binds[e].pos, rest[e].pos), 0, 1e-4);
+    CHECK_NEAR(dist(m.binds[w].pos, rest[w].pos), 0, 1e-4);
+    // Each tetrahedron's first vertex sat on its joint: it moved with it.
+    auto first_vertex = [&](const char* name) {
+        size_t k = 0;
+        for (; k < binds.size() && binds[k].name != name; ++k) {}
+        return Vec3{m.positions[k * 12], m.positions[k * 12 + 1], m.positions[k * 12 + 2]};
+    };
+    CHECK_NEAR(dist(first_vertex("mWristLeft"), rest[w].pos), 0, 1e-4);
+    CHECK_NEAR(dist(first_vertex("mHead"), rest[s.find("mHead")].pos), 0, 1e-4);
+    CHECK(!has(check_rig_export(s, {part_of(m)}, {}), "rest_pose"));
+    // A creature (no legs rigged) may be animated for the pose it is bound in: left as it is.
+    std::vector<Bind> upper(binds.begin(), binds.end() - 4), lower(binds.end() - 4, binds.end());
+    DaeModel legless = make_model(upper);
+    CHECK(!stand_in_rest_pose(s, {&legless}));
+    CHECK(legless.rest_pose_checked);  // judged once, not on every call
+    // A body in two files: the legs in the other part make the upper one an upright humanoid, also when the upper
+    // part alone is loaded again (a weight edit, a rig fix) and judged anew.
+    DaeModel top = make_model(upper), legs = make_model(lower);
+    CHECK(stand_in_rest_pose(s, {&top, &legs}));
+    CHECK_NEAR(dist(top.binds[e].pos, rest[e].pos), 0, 1e-4);
+    DaeModel reloaded = make_model(upper);
+    CHECK(stand_in_rest_pose(s, {&reloaded, &legs}));
+    CHECK_NEAR(dist(reloaded.binds[e].pos, rest[e].pos), 0, 1e-4);
+    // A shape key's offset on the forearm turns with it: 1 cm down along the hanging arm becomes 1 cm along the
+    // level one.
+    DaeModel keyed = make_model(binds);
+    size_t k = 0;
+    for (; k < binds.size() && binds[k].name != std::string("mElbowLeft"); ++k) {}
+    const Vec3 hanging = (posed[w].pos - posed[e].pos).normalized() * 0.01;
+    keyed.shape_keys.push_back({"Bulge", {std::uint32_t(k * 4)}, {float(hanging.x), float(hanging.y), float(hanging.z)}, {}, 0});
+    CHECK(stand_in_rest_pose(s, {&keyed}));
+    const std::vector<float>& d = keyed.shape_keys[0].dpos;
+    const Vec3 level = (rest[w].pos - rest[e].pos).normalized() * 0.01;
+    CHECK_NEAR(dist(Vec3{d[0], d[1], d[2]}, level), 0, 1e-5);
 }
 
 // ---- shape-proof (spec 08 RG-10) ----

@@ -238,8 +238,12 @@ The values are for the default shape; a wearer's own shape changes the height th
 
 ### Arms bound off SL's rest pose
 
-Information: the arms were bound hanging (an A-pose) on joints that keep SL's rest, as a mapped rig is.
+The arms were bound hanging (an A-pose) on joints that keep SL's rest, as a mapped rig is.
 SL animations would turn them that far again. Tick **Stand it in SL's rest pose** for an upright humanoid.
+
+Shown as a body (Inventory → Bodies), such an upright humanoid already stands in SL's rest pose, arms out
+level, as SL will show it after that export, so the animations you make or retarget on it play the same
+in-world.
 
 ### Shape-proof
 

@@ -232,6 +232,13 @@ The clip has too many animated bones for any part length. Tick more trades, or t
 The file's bind pose does not match its animation. Tick **Rest pose from frame 0** if frame 0 is a
 T-pose or an A-pose, and press **Import Again**.
 
+### The arms cross through a mesh body
+
+The body shown was bound in an A-pose (arms hanging) and VATs before 0.4.1 showed it in that pose, so the
+animation lowered the arms a second time. VATs now shows such a body in SL's rest pose, arms out level, as SL
+does once it is uploaded with **Stand it in SL's rest pose** (see [[Rigging for SL without add-ons]]). The
+animation itself was right: it fits SL's rest pose, which is what plays in-world.
+
 ### Import failed: this build has no FBX support
 
 The app was built without FBX (`VATS_FBX=OFF`). Convert the file to glTF or BVH, or use a build with

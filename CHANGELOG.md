@@ -2,6 +2,17 @@
 
 All notable changes to Viewport Avatar Toolset are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-10-17
+
+### Added
+
+- **File → Export Rigged Mesh for SL...** writes the body at **Resize Skeleton**'s size: the mesh and its joint positions scaled together, so one size drives both a giant avatar and its animations. The window gives the size and height it writes, and **Even out with mSkull** stands the giant on the ground in Second Life (a 600% body was uploaded and worn on the main grid).
+
+### Fixed
+
+- A mesh body bound in an A-pose (an upright humanoid mapped from its own rig) was shown in that pose, so retargeted and SL animations turned its arms down a second time and crossed them through the body. It is now shown in SL's rest pose, arms out level, as SL shows it once it is uploaded with **Stand it in SL's rest pose**.
+- **--export-rig** before the first frame now checks the body as the window shows it.
+
 ## [0.4.0] - 2026-10-17
 
 ### Added
@@ -200,6 +211,8 @@ Initial public release, for Linux (x86_64) and 64-bit Windows.
 - Control presets: Industry (Maya-style), Blender, QAvimator and Second Life.
 - Built-in help with contents and search, a controls window, two themes, interface scaling, autosave with crash recovery, file associations, and command-line options for files, presets, views, lights, reference and listing media, tool windows, screenshots and benchmarks.
 
+[0.4.1]: ../../releases/tag/v0.4.1
+[0.4.0]: ../../releases/tag/v0.4.0
 [0.3.1]: ../../releases/tag/v0.3.1
 [0.3.0]: ../../releases/tag/v0.3.0
 [0.2.1]: ../../releases/tag/v0.2.1

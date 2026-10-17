@@ -59,9 +59,24 @@ positions**), not by scaling. So **Export .anim** and BVH write the positions as
 - every other position key at its resized place: the size times the bone's position and move;
 - a BVH's skeleton (`OFFSET`s) at the new size.
 
-An exported animation fits an avatar of that size, rigged with joint positions: one made in Blender with Avastar or
-Bento Buddy by scaling the rig and the mesh together, for example. On an avatar of another size, bones with position
-keys stand where they would on yours.
+An exported animation fits an avatar of that size, rigged with joint positions: the body itself, written by **File →
+Export Rigged Mesh for SL...** at the same size (below), or one made in Blender with Avastar or Bento Buddy by scaling
+the rig and the mesh together. On an avatar of another size, bones with position keys stand where they would on
+yours.
+
+### The giant avatar to go with it
+
+With a mesh body shown (Inventory → Bodies), **File → Export Rigged Mesh for SL...** writes it at the skeleton's
+size: the mesh and its joint positions are scaled together, and the window says so, for example `Written at Resize
+Skeleton's size: 600%, 11.07 m tall.` One size then drives both the avatar you upload and its animations.
+
+A giant made with joint positions sinks into the ground in Second Life: the region keeps the agent at the wearer's
+own shape size. The window predicts by how much (`In Second Life it sinks 475.8 cm into the ground`); press **Even
+out with mSkull** under that finding and it stands on the ground again. Upload with **Include skin weight** and
+**Include joint positions** ticked and **Z offset** at 0. A 600% body exported this way was uploaded and worn on the
+main grid and stood on the ground. See [[Rigging for SL without add-ons#Floats or sinks in-world]].
+
+Set the size back to 100% to write the body as it was imported.
 
 **Also export for heights** (see [[Export to Second Life]]) is off while any actor is resized: those heights are SL
 shapes at 100%, and the keys fit the resized body.
